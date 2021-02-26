@@ -46,7 +46,6 @@ class Make:
                     key = key_match.group()
                     value = float(value_match.group())
                     f.attrs[key] = value
-                    continue
 
             for line in f.attrs["script"].split("\n"):
                 line = line.lower()
