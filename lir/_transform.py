@@ -7,7 +7,7 @@ from typing import *
 
 
 class Transform:
-    path: str
+    h5_path: str
 
     def disp(
         self,
@@ -22,7 +22,7 @@ class Transform:
         ),
         save: bool = True,
     ) -> np.ndarray:
-        with h5py.File(self.path, "r") as f:
+        with h5py.File(self.h5_path, "r") as f:
             arr: da = da.from_array(f[dset], chunks=(None, None, 15, None, None))
             arr = arr[slices]  # slice
             arr = da.multiply(
@@ -46,7 +46,7 @@ class Transform:
             out: np.ndarray = arr.compute()
 
         if save:
-            with h5py.File(self.path, "a") as f:
+            with h5py.File(self.h5_path, "a") as f:
                 dset_disp = f.create_dataset(name, data=out)
                 dset_disp.attrs["slices"] = str(slices)
                 dset_disp.attrs["dset"] = dset
@@ -66,7 +66,7 @@ class Transform:
         ),
         save: bool = True,
     ) -> np.ndarray:
-        with h5py.File(self.path, "a") as f:
+        with h5py.File(self.h5_path, "a") as f:
             arr: np.ndarray
             if slices is None:
                 arr = f[dset][:]
