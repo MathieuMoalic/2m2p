@@ -5,16 +5,17 @@ import struct
 
 from lir._make import Make
 from lir._transform import Transform
+from lir._ovf import Ovf
 
 
-class Lir(Make, Transform):
-    def __init__(self, h5_path: str, loadpath: Optional[str] = None, force=False):
+class Lir(Make, Transform, Ovf):
+    def __init__(self, h5_path: str, load_path: Optional[str] = None, tmax=None, force=False):
         self.force = force
         self.h5_path = h5_path
         self.name = h5_path.split("/")[-1][:-3]
-        if loadpath is not None:
-            self.make(loadpath)
-        self.getitem_dset: Optional[str] = None
+        if load_path is not None:
+            self.make(load_path,tmax=tmax)
+        self._getitem_dset: Optional[str] = None
 
     def __getitem__(
         self,
@@ -25,9 +26,9 @@ class Lir(Make, Transform):
             # if slicing
             if isinstance(index, (slice, tuple, int)):
                 # if dset is defined
-                if isinstance(self.getitem_dset, str):
-                    out_dset: np.ndarray = f[self.getitem_dset][index]
-                    self.getitem_dset = None
+                if isinstance(self._getitem_dset, str):
+                    out_dset: np.ndarray = f[self._getitem_dset][index]
+                    self._getitem_dset = None
                     return out_dset
                 else:
                     raise AttributeError("You can only slice datasets")
@@ -35,7 +36,7 @@ class Lir(Make, Transform):
             elif isinstance(index, str):
                 # if dataset
                 if index in list(f.keys()):
-                    self.getitem_dset = index
+                    self._getitem_dset = index
                     return self
                 # if attribute
                 elif index in list(f.attrs.keys()):
@@ -82,60 +83,6 @@ class Lir(Make, Transform):
         else:
             with open(savepath,"w") as f:
                 f.writelines(self["script"])
-
-    def save_ovf(self,dset,name,t=0):
-
-        def whd(s):
-            s += "\n"
-            f.write(s.encode("ASCII"))
-            
-        arr = self[dset][t]
-        out = arr.astype('<f4')
-        out = out.tobytes()
-        title = dset
-        xstepsize, ystepsize, zstepsize = self["dx"], self["dy"], self["dz"], 
-        xnodes, ynodes, znodes = arr.shape[2], arr.shape[1], arr.shape[0]
-        xmin, ymin, zmin = 0, 0, 0
-        xmax, ymax, zmax = xnodes*xstepsize, ynodes*ystepsize, znodes*zstepsize
-        xbase, ybase, zbase = xstepsize/2, ystepsize/2, zstepsize/2
-        valuedim = arr.shape[-1]
-        valuelabels = "x y z"
-        valueunits = "1 1 1"
-        total_sim_time = "0"
-        with open(name,"wb") as f:
-            whd(f"# OOMMF OVF 2.0")
-            whd(f"# Segment count: 1")
-            whd(f"# Begin: Segment")
-            whd(f"# Begin: Header")
-            whd(f"# Title: {title}")
-            whd(f"# meshtype: rectangular")
-            whd(f"# meshunit: m")
-            whd(f"# xmin: {xmin}")
-            whd(f"# ymin: {ymin}")
-            whd(f"# zmin: {zmin}")
-            whd(f"# xmax: {xmax}")
-            whd(f"# ymax: {ymax}")
-            whd(f"# zmax: {zmax}")
-            whd(f"# valuedim: {valuedim}")
-            whd(f"# valuelabels: {valuelabels}")
-            whd(f"# valueunits: {valueunits}")
-            whd(f"# Desc: Total simulation time:  {total_sim_time}  s")
-            whd(f"# xbase: {xbase}")
-            whd(f"# ybase: {ybase}")
-            whd(f"# zbase: {ybase}")
-            whd(f"# xnodes: {xnodes}")
-            whd(f"# ynodes: {ynodes}")
-            whd(f"# znodes: {znodes}")
-            whd(f"# xstepsize: {xstepsize}")
-            whd(f"# ystepsize: {ystepsize}")
-            whd(f"# zstepsize: {zstepsize}")
-            whd(f"# End: Header")
-            whd(f"# Begin: Data Binary 4")
-            f.write(struct.pack("<f",1234567.0))
-            f.write(out)
-            whd(f"# End: Data Binary 4")
-            whd(f"# End: Segment")
-        
 
     @property
     def p(self) -> None:
