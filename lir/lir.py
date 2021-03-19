@@ -63,7 +63,7 @@ class Lir(Make, Transform, Ovf):
     def t(self,script_name,ovf_folder="/mnt/g/Mathieu/simulations/stable",dset="stable",t=0):
         linux_ovf_name = f"{ovf_folder}/{self.name}.ovf"
         windows_ovf_name = f"G:{ovf_folder[6:]}/{self.name}.ovf"
-        script_lines = self["script"].split("\n")
+        script_lines = self["mx3"].split("\n")
         load_line = f'm.loadfile("{windows_ovf_name}")\n'
 
         with open(script_name,"w") as f:
@@ -77,12 +77,12 @@ class Lir(Make, Transform, Ovf):
 
         self.save_ovf(dset,linux_ovf_name,t=t)
 
-    def script(self,savepath=None):
+    def mx3(self,savepath=None):
         if savepath is None:
-            print(self["script"])
+            print(self["mx3"])
         else:
             with open(savepath,"w") as f:
-                f.writelines(self["script"])
+                f.writelines(self["mx3"])
 
     @property
     def p(self) -> None:
@@ -92,8 +92,10 @@ class Lir(Make, Transform, Ovf):
                 print(f"    {key:<15}: {f[key].shape}")
             print("Attributes:")
             for key in list(f.attrs.keys()):
-                if key != "script":
+                if key != "mx3":
                     print(f"    {key:<15}= {f.attrs[key]}")
+                else:
+                    print(f"    {key:<15}= {f.attrs[key][:10]}...")
 
     def freqs(self) -> np.ndarray:
         with h5py.File(self.h5_path, "r") as f:

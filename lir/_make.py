@@ -5,6 +5,7 @@ import re
 import h5py  # type: ignore
 import multiprocessing as mp
 from typing import *
+from typing import Match
 
 
 class Make:
@@ -49,7 +50,7 @@ class Make:
             def get_attribute(key_re: str, value_re: str, region_re: str=None) -> None:
                 key_match = re.search(key_re, line)
                 value_match = re.search(value_re, line)
-                print(line,key_match,value_match,key_re,value_re)
+                # print(line,key_match,value_match,key_re,value_re)
                 if region_re is not None:
                     region_match = re.search(region_re, line)
 
@@ -66,8 +67,7 @@ class Make:
                     return True
                 return False
 
-        try:
-            lines = f.attrs["script"]
+            lines = f.attrs["mx3"]
             lines = lines.split("\n")
             for line in lines:
                 line = line.lower()
@@ -84,8 +84,6 @@ class Make:
                 # matches frequency
                 if get_attribute(r"^[[f]|[f_cut]] *:=", r"\d+.?\d*e?-?\d*"):
                     continue
-        except:
-            print("Couldn't parse script")
 
     def add_table(self, table_path, name="table"):
         if os.path.isfile(table_path):
@@ -108,10 +106,11 @@ class Make:
         return out_path, mx3_path
 
     def add_mx3(self,mx3_path):
+        print(mx3_path)
         if os.path.isfile(mx3_path):
-            with open(mx3_path, "r") as script:
+            with open(mx3_path, "r") as mx3:
                 with h5py.File(self.h5_path, "a") as f:
-                    f.attrs["script"] = script.read()
+                    f.attrs["mx3"] = mx3.read()
         else:
             print(f"{mx3_path} not found")
 
@@ -153,7 +152,6 @@ class Make:
         self._count = self._ovf_shape[0] * self._ovf_shape[1] * self._ovf_shape[2] * self._ovf_shape[3] + 1
         if name is None:
             name = self._get_dset_name(prefix)
-        print(name)
         
         with h5py.File(self.h5_path, "a") as f:
             if force and name in list(f.keys()):
@@ -175,11 +173,9 @@ class Make:
         # automatically parse the load_path and will create datasets etc ..
         self._create_h5()
         out_path, mx3_path = self._get_paths(load_path)
-        print(out_path,mx3_path)
         self.add_table(f"{out_path}/table.txt")
         self.add_mx3(mx3_path)
         self.parse_script()
         dset_prefixes = self._get_dset_prefixes(out_path)
-        print(dset_prefixes)
         for dset_prefix in dset_prefixes:
             self.add_dset(out_path,dset_prefix,tmax=tmax)
