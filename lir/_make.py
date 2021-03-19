@@ -11,24 +11,31 @@ class Make:
     path: str
     name: str
 
-    def load_ovf(self, path: str) -> np.ndarray:
+    def _load_ovf(self, path: str) -> np.ndarray:
         with open(path, "rb") as f:
-            dims: np.ndarray = np.array([0, 0, 0, 0])
+            for _ in range(28):
+                next(f)
+            try:
+                arr: np.ndarray = np.fromfile(f, "<f4", count=self._count)[1:].reshape(self._ovf_shape)
+            except ValueError as e:
+                print("ovf files are corrupted")
+                return e
+        return arr
+
+    def _get_ovf_shape(self, path: str) -> np.ndarray:
+        with open(path, "rb") as f:
             while True:
                 line = f.readline().strip().decode("ASCII")
                 if "valuedim" in line:
-                    dims[3] = int(line.split(" ")[-1])
+                    c = int(line.split(" ")[-1])
                 if "xnodes" in line:
-                    dims[2] = int(line.split(" ")[-1])
+                    x = int(line.split(" ")[-1])
                 if "ynodes" in line:
-                    dims[1] = int(line.split(" ")[-1])
+                    y = int(line.split(" ")[-1])
                 if "znodes" in line:
-                    dims[0] = int(line.split(" ")[-1])
-                if "Begin: Data" in line:
+                    z = int(line.split(" ")[-1])
                     break
-            count: int = int(dims[0] * dims[1] * dims[2] * dims[3] + 1)
-            arr: np.ndarray = np.fromfile(f, "<f4", count=count)[1:].reshape(dims)
-        return arr
+        return (z,y,x,c)
 
     def parse_script(self) -> None:
         with h5py.File(self.h5_path, "a") as f:
@@ -93,11 +100,11 @@ class Make:
         else:
             print("table.txt not found")
 
-    def get_paths(self,loadpath):
-        if loadpath[-3:] in ['mx3','out']:
-            loadpath = loadpath[:-4]
-            out_path = f"{loadpath}.out"
-            mx3_path = f"{loadpath}.mx3"
+    def _get_paths(self,load_path):
+        if load_path[-3:] in ['mx3','out']:
+            load_path = load_path[:-4]
+        out_path = f"{load_path}.out"
+        mx3_path = f"{load_path}.mx3"
         return out_path, mx3_path
 
     def add_mx3(self,mx3_path):
@@ -108,7 +115,7 @@ class Make:
         else:
             print(f"{mx3_path} not found")
 
-    def create_h5(self):
+    def _create_h5(self):
         if self.force:
             with h5py.File(self.h5_path, "w") as f:
                 pass
@@ -123,42 +130,56 @@ class Make:
                 else:
                     return
 
-    def get_dset_prefixes(self,out_path):
+    def _get_dset_prefixes(self,out_path):
         prefixes = [i.split("/")[-1].replace("_000000.ovf","") for i in glob(f"{out_path}/*00000.ovf")]
         if os.path.isfile(f"{out_path}/stable.ovf"):
             prefixes.append("stable")
         return prefixes
 
-    def add_dset(self, out_path, prefix, name=None, tmax=None force=False):
-        common_prefix_to_name_dict = {"zrange4":"ND","zrange2":"WG","stable":"stable"}
+    def _get_dset_name(self,prefix):
+        # this func replaces common prefixes with more readable dset names
+        common_prefix_to_name = (("m_zrange4","ND"),("m_zrange2","WG"),("stable","stable"))
+        for i in common_prefix_to_name:
+            if i[0] in prefix:
+                return i[1]
+        return prefix
+
+    def add_dset(self, out_path, prefix, name=None, tmax=None, force=False):
         ovf_paths = sorted(glob(f"{out_path}/{prefix}*.ovf"))[:tmax]
         # load one file to initialize the h5 dataset with the correct shape
-        dset_shape = (len(ovf_paths),) + self.load_ovf(ovf_paths[0]).shape
-        name = common_prefix_to_name_dict.get(prefix[:9],prefix)
+        self._ovf_shape = self._get_ovf_shape(ovf_paths[0])
+        dset_shape = ((len(ovf_paths),)+self._ovf_shape)
+        # number of bytes in the data used in self._load_ovf, (+1 is for the security number of ovf) 
+        self._count = self._ovf_shape[0] * self._ovf_shape[1] * self._ovf_shape[2] * self._ovf_shape[3] + 1
+        if name is None:
+            name = self._get_dset_name(prefix)
+        print(name)
+        
         with h5py.File(self.h5_path, "a") as f:
-            if force and name in list(f.keys):
+            if force and name in list(f.keys()):
                 del f[name]
             dset = f.create_dataset(name, dset_shape, np.float32)
             pool = mp.Pool(processes=int(mp.cpu_count() - 1))
-            for i, data in enumerate(pool.imap(self.load_ovf, ovf_paths)):
+            for i, data in enumerate(pool.imap(self._load_ovf, ovf_paths)):
                 dset[i] = data
             pool.close()
             pool.join()
-    
+
     def add_np_dset(self,arr,name,force=False):
-        if force and name in list(f.keys):
+        if force and name in list(f.keys()):
             del f[name]
         with h5py.File(self.h5_path, "a") as f:
             f.create_dataset(name,data=arr)
 
-    def make(self, loadpath: str) -> None:
-        # automatically parse the loadpath and will create datasets etc ..
-        
-        self.create_h5()
-        out_path, mx3_path = self.get_paths(loadpath)
+    def make(self, load_path: str, tmax=None) -> None:
+        # automatically parse the load_path and will create datasets etc ..
+        self._create_h5()
+        out_path, mx3_path = self._get_paths(load_path)
+        print(out_path,mx3_path)
         self.add_table(f"{out_path}/table.txt")
         self.add_mx3(mx3_path)
         self.parse_script()
-        dset_prefixes = self.get_dset_prefixes(out_path)
+        dset_prefixes = self._get_dset_prefixes(out_path)
+        print(dset_prefixes)
         for dset_prefix in dset_prefixes:
-            self.add_dset(out_path,dset_prefix)
+            self.add_dset(out_path,dset_prefix,tmax=tmax)
