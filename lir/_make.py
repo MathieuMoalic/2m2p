@@ -2,18 +2,15 @@ import numpy as np
 from glob import glob
 import os
 import re
-import h5py  # type: ignore
+import h5py
 import multiprocessing as mp
-from typing import *
-from typing import Match
-
+from typing import Tuple, List, Optional
 
 class Make:
-    path: str
-    name: str
 
-    def _load_ovf(self, path: str) -> np.ndarray:
-        with open(path, "rb") as f:
+    def _load_ovf(self, ovf_path: str) -> np.ndarray:
+        """Returns an np.ndarray from the ovf"""
+        with open(ovf_path, "rb") as f:
             for _ in range(28):
                 next(f)
             try:
@@ -23,8 +20,9 @@ class Make:
                 return e
         return arr
 
-    def _get_ovf_shape(self, path: str) -> np.ndarray:
-        with open(path, "rb") as f:
+    def _get_ovf_shape(self, ovf_path: str) -> Tuple:
+        """Return a tuple of the shape of the ovf file at the ovf_path"""
+        with open(ovf_path, "rb") as f:
             while True:
                 line = f.readline().strip().decode("ASCII")
                 if "valuedim" in line:
@@ -39,6 +37,7 @@ class Make:
         return (z,y,x,c)
 
     def parse_script(self) -> None:
+        """Parses the f.attrs["mx3"], matches common patterns and save them as attributes"""
         with h5py.File(self.h5_path, "a") as f:
             line: str
             key: str
@@ -85,28 +84,30 @@ class Make:
                 if get_attribute(r"^[[f]|[f_cut]] *:=", r"\d+.?\d*e?-?\d*"):
                     continue
 
-    def add_table(self, table_path, name="table"):
+    def add_table(self, table_path: str, dset_name: str="table") -> None:
+        """Adds a the mumax table.txt file as a dataset"""
         if os.path.isfile(table_path):
             with open(table_path, "r") as table:
                 header: str = table.readline()
                 data: np.ndarray = np.loadtxt(table).T
                 dt: float = (data[0, -1] - data[0, 0]) / (data.shape[1] - 1)
             with h5py.File(self.h5_path, "a") as f:
-                tableds = f.create_dataset(name, data=data)
+                tableds = f.create_dataset(dset_name, data=data)
                 tableds.attrs["header"] = header
                 f.attrs["dt"] = dt
         else:
             print("table.txt not found")
 
-    def _get_paths(self,load_path):
+    def _get_paths(self,load_path: str) -> Tuple[str,str]:
+        """Cleans the input string and return the path for .out folder and .mx3 file"""
         if load_path[-3:] in ['mx3','out']:
             load_path = load_path[:-4]
         out_path = f"{load_path}.out"
         mx3_path = f"{load_path}.mx3"
         return out_path, mx3_path
 
-    def add_mx3(self,mx3_path):
-        print(mx3_path)
+    def add_mx3(self,mx3_path: str) -> None:
+        """Adds the mx3 file to the f.attrs"""
         if os.path.isfile(mx3_path):
             with open(mx3_path, "r") as mx3:
                 with h5py.File(self.h5_path, "a") as f:
@@ -114,10 +115,11 @@ class Make:
         else:
             print(f"{mx3_path} not found")
 
-    def _create_h5(self):
+    def _create_h5(self) -> bool:
+        """Creates an empty .h5 file"""
         if self.force:
             with h5py.File(self.h5_path, "w") as f:
-                pass
+                return True
         else:
             if os.path.isfile(self.h5_path):
                 input_string: str = input(
@@ -125,26 +127,28 @@ class Make:
                 )
                 if input_string.lower() in ["y", "yes"]:
                     with h5py.File(self.h5_path, "w") as f:
-                        pass
-                else:
-                    return
+                        return True
+        return False
 
-    def _get_dset_prefixes(self,out_path):
-        prefixes = [i.split("/")[-1].replace("_000000.ovf","") for i in glob(f"{out_path}/*00000.ovf")]
+    def _get_dset_prefixes(self,out_path: str) -> List[str,...]:
+        """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""
+        prefixes = [i.split("/")[-1].replace("000000.ovf","") for i in glob(f"{out_path}/*00000.ovf")]
         if os.path.isfile(f"{out_path}/stable.ovf"):
             prefixes.append("stable")
         return prefixes
 
-    def _get_dset_name(self,prefix):
-        # this func replaces common prefixes with more readable dset names
-        common_prefix_to_name = (("m_zrange4","ND"),("m_zrange2","WG"),("stable","stable"))
+    def _get_dset_name(self,prefix: str) -> str:
+        """ From the prefix, this tries to return a human readable version """
+        common_prefix_to_name = (("zrange4","ND"),("zrange2","WG"),("stable","stable"))
         for i in common_prefix_to_name:
             if i[0] in prefix:
                 return i[1]
         return prefix
 
-    def add_dset(self, out_path, prefix, name=None, tmax=None, force=False):
+    def add_dset(self, out_path: str, prefix: str, name:Optional[str] =None, tmax:Optional[int]=None, force:bool=False) -> None:
+        """Creates a dataset from an input .out folder path and a prefix (i.e. "m00")"""
         ovf_paths = sorted(glob(f"{out_path}/{prefix}*.ovf"))[:tmax]
+        print(f"{out_path}/{prefix}*.ovf")
         # load one file to initialize the h5 dataset with the correct shape
         self._ovf_shape = self._get_ovf_shape(ovf_paths[0])
         dset_shape = ((len(ovf_paths),)+self._ovf_shape)
@@ -163,19 +167,22 @@ class Make:
             pool.close()
             pool.join()
 
-    def add_np_dset(self,arr,name,force=False):
+    def add_np_dset(self,arr:np.ndarray,name:str,force:bool =False):
         if force and name in list(f.keys()):
             del f[name]
         with h5py.File(self.h5_path, "a") as f:
             f.create_dataset(name,data=arr)
 
-    def make(self, load_path: str, tmax=None) -> None:
-        # automatically parse the load_path and will create datasets etc ..
+    def make(self, load_path: str, tmax:Optional[int] =None) -> None:
+        """Automatically parse the load_path and will create datasets"""
         self._create_h5()
         out_path, mx3_path = self._get_paths(load_path)
         self.add_table(f"{out_path}/table.txt")
         self.add_mx3(mx3_path)
-        self.parse_script()
+        try:
+            self.parse_script()
+        except:
+            pass
         dset_prefixes = self._get_dset_prefixes(out_path)
         for dset_prefix in dset_prefixes:
             self.add_dset(out_path,dset_prefix,tmax=tmax)

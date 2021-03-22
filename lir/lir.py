@@ -1,7 +1,8 @@
-import h5py  # type: ignore
-import numpy as np
 from typing import *
 import struct
+
+import h5py
+import numpy as np
 
 from lir._make import Make
 from lir._transform import Transform
@@ -9,7 +10,7 @@ from lir._ovf import Ovf
 
 
 class Lir(Make, Transform, Ovf):
-    def __init__(self, h5_path: str, load_path: Optional[str] = None, tmax=None, force=False):
+    def __init__(self, h5_path: str, load_path: Optional[str] = None, tmax=None, force=False) -> None:
         self.force = force
         self.h5_path = h5_path
         self.name = h5_path.split("/")[-1][:-3]
@@ -47,20 +48,18 @@ class Lir(Make, Transform, Ovf):
             else:
                 raise TypeError()
 
-    def dset(self, name: str, data: np.ndarray) -> None:
-        with h5py.File(self.h5_path, "a") as f:
-            f.create_dataset(name, data=data)
-
-    def a(
+    def set_attr(
         self,
         name: str,
         key: str,
         val: Union[str, int, float, slice, Tuple[Union[int, slice], ...]],
     ) -> None:
+    """set a new attribute"""
         with h5py.File(self.h5_path, "a") as f:
             f[name].attrs[key] = val
 
-    def t(self,script_name,ovf_folder="/mnt/g/Mathieu/simulations/stable",dset="stable",t=0):
+    def t(self,script_name:str,ovf_folder:str="/mnt/g/Mathieu/simulations/stable",dset:str="stable",t:int=0) -> None:
+        """Writes a new mx3 from the one saved in this h5 file, it will add the load line too"""
         linux_ovf_name = f"{ovf_folder}/{self.name}.ovf"
         windows_ovf_name = f"G:{ovf_folder[6:]}/{self.name}.ovf"
         script_lines = self["mx3"].split("\n")
@@ -77,7 +76,8 @@ class Lir(Make, Transform, Ovf):
 
         self.save_ovf(dset,linux_ovf_name,t=t)
 
-    def mx3(self,savepath=None):
+    def mx3(self,savepath:str=None)-> None:
+        """prints or saves the mx3"""
         if savepath is None:
             print(self["mx3"])
         else:
@@ -98,25 +98,29 @@ class Lir(Make, Transform, Ovf):
                     print(f"    {key:<15}= {f.attrs[key][:10]}...")
 
     def freqs(self) -> np.ndarray:
+        """returns frequencies"""
         with h5py.File(self.h5_path, "r") as f:
-            dt: float = f.attrs["dt"]
-            tshape: int = f["WG"].shape[0]
-            out: np.ndarray = np.fft.rfftfreq(tshape, dt * 1e9)
+            dt = f.attrs["dt"]
+            tshape = f["WG"].shape[0]
+            out = np.fft.rfftfreq(tshape, dt * 1e9)
         return out
 
     def kvecs(self) -> np.ndarray:
+        """returns wavevectors"""
         with h5py.File(self.h5_path, "r") as f:
-            dx: float = f.attrs["dx"]
-            xshape: int = f["WG"].shape[3]
-            out: np.ndarray = (
+            dx = f.attrs["dx"]
+            xshape = f["WG"].shape[3]
+            out = (
                 np.fft.fftshift(np.fft.fftfreq(xshape, dx) * 2 * np.pi) / 1e6
             )
         return out
 
-    def d(self, dset: str) -> None:
+    def delete(self, dset: str) -> None:
+        """deletes dataset"""
         with h5py.File(self.h5_path, "a") as f:
             del f[dset]
 
     def move(self, source: str, destination: str) -> None:
+        """move dataset or attribute"""
         with h5py.File(self.h5_path, "a") as f:
             f.move(source, destination)

@@ -1,13 +1,11 @@
 import multiprocessing as mp
-import dask.array as da  # type: ignore
+import dask.array as da 
 import numpy as np
-import h5py  # type: ignore
-import tqdm  # type: ignore
-from typing import *
+import h5py
+from typing import Tuple, Union
 
 
 class Transform:
-    h5_path: str
 
     def disp(
         self,
@@ -22,8 +20,9 @@ class Transform:
         ),
         save: bool = True,
     ) -> np.ndarray:
+    """Calculates and returns the dispersions using dask"""
         with h5py.File(self.h5_path, "r") as f:
-            arr: da = da.from_array(f[dset], chunks=(None, None, 15, None, None))
+            arr = da.from_array(f[dset], chunks=(None, None, 15, None, None))
             arr = arr[slices]  # slice
             arr = da.multiply(
                 arr, np.hanning(arr.shape[0])[:, None, None, None]
@@ -43,7 +42,7 @@ class Transform:
             arr = da.fft.fftshift(arr, axes=(1, 2))
             arr = da.absolute(arr)  # from complex to real
             arr = da.sum(arr, axis=1)  # sum y
-            out: np.ndarray = arr.compute()
+            out = arr.compute()
 
         if save:
             with h5py.File(self.h5_path, "a") as f:
@@ -66,8 +65,8 @@ class Transform:
         ),
         save: bool = True,
     ) -> np.ndarray:
+    """Calculates and return the fft of the dataset"""
         with h5py.File(self.h5_path, "a") as f:
-            arr: np.ndarray
             if slices is None:
                 arr = f[dset][:]
             else:
@@ -78,13 +77,13 @@ class Transform:
                 if arr.shape[i] % 2 == 0:
                     arr = np.delete(arr, 1, i)
 
-            hann: np.ndarray = np.hanning(arr.shape[0])
+            hann= np.hanning(arr.shape[0])
             for i in range(len(hann)):
                 arr[i] *= hann[i]
 
-            _hy: np.ndarray = np.hamming(arr.shape[2])
-            _hx: np.ndarray = np.hamming(arr.shape[3])
-            a: np.ndarray = np.sqrt(np.outer(_hy, _hx))
+            _hy = np.hamming(arr.shape[2])
+            _hx = np.hamming(arr.shape[3])
+            a = np.sqrt(np.outer(_hy, _hx))
             pre_shape: Tuple[Union[int, slice], ...] = arr.shape
             mxy = (
                 np.reshape(
@@ -99,8 +98,8 @@ class Transform:
             )
             arr = np.reshape(arr, pre_shape)
 
-            arr = arr.sum(axis=1)  # type: ignore # t,z,y,x,c => t,y,x,c
-            fft: List[np.ndarray] = []  # fft fot each cell and comp
+            arr = arr.sum(axis=1) # t,z,y,x,c => t,y,x,c
+            fft = []  # fft for each cell and comp
             for y in tqdm(
                 range(arr.shape[1]),
                 desc="Calculating FFT",
@@ -112,9 +111,9 @@ class Transform:
                         d = arr[:, y, x, c]
                         d = d - np.average(d)
                         fft.append(np.fft.rfft(d))
-            out: np.ndarray = np.array(fft)
+            out = np.array(fft)
             out = np.abs(out)
-            out = np.sum(out, axis=0)  # type: ignore
+            out = np.sum(out, axis=0)
             out /= (
                 arr.shape[1] * arr.shape[2]
             )  # changing the amplitude on a per cell basis
