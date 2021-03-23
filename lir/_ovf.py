@@ -1,7 +1,7 @@
 
 
 class Ovf:
-    def save_ovf(self,dset:str,name:str,t:int=0) ->:
+    def save_ovf(self,dset:str,name:str,t:int=0) ->None :
         """Saves the given dataset to a valid OOMMF V2 ovf file"""
         def whd(s):
             s += "\n"

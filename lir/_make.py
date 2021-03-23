@@ -130,7 +130,7 @@ class Make:
                         return True
         return False
 
-    def _get_dset_prefixes(self,out_path: str) -> List[str,...]:
+    def _get_dset_prefixes(self,out_path: str) -> List[str]:
         """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""
         prefixes = [i.split("/")[-1].replace("000000.ovf","") for i in glob(f"{out_path}/*00000.ovf")]
         if os.path.isfile(f"{out_path}/stable.ovf"):
@@ -148,7 +148,6 @@ class Make:
     def add_dset(self, out_path: str, prefix: str, name:Optional[str] =None, tmax:Optional[int]=None, force:bool=False) -> None:
         """Creates a dataset from an input .out folder path and a prefix (i.e. "m00")"""
         ovf_paths = sorted(glob(f"{out_path}/{prefix}*.ovf"))[:tmax]
-        print(f"{out_path}/{prefix}*.ovf")
         # load one file to initialize the h5 dataset with the correct shape
         self._ovf_shape = self._get_ovf_shape(ovf_paths[0])
         dset_shape = ((len(ovf_paths),)+self._ovf_shape)

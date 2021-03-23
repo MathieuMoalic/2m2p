@@ -20,7 +20,7 @@ class Transform:
         ),
         save: bool = True,
     ) -> np.ndarray:
-    """Calculates and returns the dispersions using dask"""
+        """Calculates and returns the dispersions using dask"""
         with h5py.File(self.h5_path, "r") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 15, None, None))
             arr = arr[slices]  # slice
@@ -65,7 +65,7 @@ class Transform:
         ),
         save: bool = True,
     ) -> np.ndarray:
-    """Calculates and return the fft of the dataset"""
+        """Calculates and return the fft of the dataset"""
         with h5py.File(self.h5_path, "a") as f:
             if slices is None:
                 arr = f[dset][:]

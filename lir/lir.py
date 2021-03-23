@@ -54,7 +54,7 @@ class Lir(Make, Transform, Ovf):
         key: str,
         val: Union[str, int, float, slice, Tuple[Union[int, slice], ...]],
     ) -> None:
-    """set a new attribute"""
+        """set a new attribute"""
         with h5py.File(self.h5_path, "a") as f:
             f[name].attrs[key] = val
 
