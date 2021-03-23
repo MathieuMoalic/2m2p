@@ -7,9 +7,10 @@ import numpy as np
 from lir._make import Make
 from lir._transform import Transform
 from lir._ovf import Ovf
+from lir._plot import Plot
 
 
-class Lir(Make, Transform, Ovf):
+class Lir(Make, Transform, Ovf, Plot):
     def __init__(self, h5_path: str, load_path: Optional[str] = None, tmax=None, force=False) -> None:
         self.force = force
         self.h5_path = h5_path
@@ -58,6 +59,19 @@ class Lir(Make, Transform, Ovf):
         with h5py.File(self.h5_path, "a") as f:
             f[name].attrs[key] = val
 
+    def shape(self,dset:str):
+        with h5py.File(self.h5_path, "r") as f:
+            return f[dset].shape
+
+    def kvecs(self,dset:str):
+        with h5py.File(self.h5_path, "r") as f:
+            return f[dset].attrs['kvecs']
+
+    def freqs(self,dset:str):
+        with h5py.File(self.h5_path, "r") as f:
+            return f[dset].attrs['freqs']
+
+
     def t(self,script_name:str,ovf_folder:str="/mnt/g/Mathieu/simulations/stable",dset:str="stable",t:int=0) -> None:
         """Writes a new mx3 from the one saved in this h5 file, it will add the load line too"""
         linux_ovf_name = f"{ovf_folder}/{self.name}.ovf"
@@ -85,35 +99,50 @@ class Lir(Make, Transform, Ovf):
                 f.writelines(self["mx3"])
 
     @property
+    def dt(self) -> float:
+        return self['dt']
+
+    @property
+    def dx(self) -> float:
+        return self['dx']
+
+    @property
+    def dy(self) -> float:
+        return self['dy']
+
+    @property
+    def dz(self) -> float:
+        return self['dz']
+
+    @property
     def p(self) -> None:
         with h5py.File(self.h5_path, "r") as f:
             print("Datasets:")
-            for key in list(f.keys()):
-                print(f"    {key:<15}: {f[key].shape}")
-            print("Attributes:")
-            for key in list(f.attrs.keys()):
-                if key != "mx3":
-                    print(f"    {key:<15}= {f.attrs[key]}")
+            for key,val in f.items():
+                print(f"    {key:<15}: {val.shape}")
+                if f[key].attrs:
+                    print(f"    Attributes of {key}:")
+                for akey,aval in f[key].attrs.items():
+                    if isinstance(aval,np.ndarray):
+                        aval = f"{aval.shape} : min={aval.min()}, max={aval.max()}"
+                    print(f"        {akey:<11}= {aval}")
+
+            print("Global Attributes:")
+            for key,val in f.attrs.items():
+                if key != "mx3" and key != "script":
+                    print(f"    {key:<15}= {val}")
                 else:
-                    print(f"    {key:<15}= {f.attrs[key][:10]}...")
+                    print(f"    {key:<15}= {val[:10]}...")
 
-    def freqs(self) -> np.ndarray:
-        """returns frequencies"""
+    def list_dsets(self) -> list:
         with h5py.File(self.h5_path, "r") as f:
-            dt = f.attrs["dt"]
-            tshape = f["WG"].shape[0]
-            out = np.fft.rfftfreq(tshape, dt * 1e9)
-        return out
-
-    def kvecs(self) -> np.ndarray:
-        """returns wavevectors"""
+            dsets = list(f.keys())
+        return dsets
+        
+    def list_attrs(self) -> list:
         with h5py.File(self.h5_path, "r") as f:
-            dx = f.attrs["dx"]
-            xshape = f["WG"].shape[3]
-            out = (
-                np.fft.fftshift(np.fft.fftfreq(xshape, dx) * 2 * np.pi) / 1e6
-            )
-        return out
+            attrs = list(f.attrs.keys())
+        return attrs
 
     def delete(self, dset: str) -> None:
         """deletes dataset"""
