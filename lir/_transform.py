@@ -7,6 +7,14 @@ from typing import Tuple, Union
 
 class Transform:
 
+    def get_freqs(self,dset) -> np.ndarray:
+        """returns frequencies in GHz depending on the number of t points in the dset and value of dt"""
+        return np.fft.rfftfreq(dset.shape[0], self.dt * 1e9)
+
+    def get_kvecs(self,dset) -> np.ndarray:
+        """returns wavevectors"""
+        return np.fft.fftshift(np.fft.fftfreq(dset.shape[1], self.dx) * 2 * np.pi) / 1e6
+
     def disp(
         self,
         dset: str = "WG",
@@ -19,8 +27,25 @@ class Transform:
             2,
         ),
         save: bool = True,
+        force: bool = False
     ) -> np.ndarray:
         """Calculates and returns the dispersions using dask"""
+        if name in self.list_dsets():
+            if force:
+                with h5py.File(self.h5_path, "a") as f:
+                    del f[name]
+            else:
+                input_string: str = input(
+                    f"{name} is already a dataset, [y] to overwrite, [n] to cancel, else [input] a new name"
+                )
+                if input_string.lower() == "y":
+                    with h5py.File(self.h5_path, "a") as f:
+                        del f[name]
+                elif input_string.lower() == "n":
+                    return
+                else:
+                    name = input_string
+
         with h5py.File(self.h5_path, "r") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 15, None, None))
             arr = arr[slices]  # slice
@@ -47,6 +72,8 @@ class Transform:
         if save:
             with h5py.File(self.h5_path, "a") as f:
                 dset_disp = f.create_dataset(name, data=out)
+                dset_disp.attrs["freqs"] = self.get_freqs(dset_disp)
+                dset_disp.attrs["kvecs"] = self.get_kvecs(dset_disp)
                 dset_disp.attrs["slices"] = str(slices)
                 dset_disp.attrs["dset"] = dset
 
