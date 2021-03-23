@@ -20,7 +20,7 @@ class Make:
                 return e
         return arr
 
-    def _get_ovf_shape(self, ovf_path: str) -> Tuple:
+    def _get_ovf_parms(self, ovf_path: str) -> dict:
         """Return a tuple of the shape of the ovf file at the ovf_path"""
         with open(ovf_path, "rb") as f:
             while True:
@@ -33,8 +33,18 @@ class Make:
                     y = int(line.split(" ")[-1])
                 if "znodes" in line:
                     z = int(line.split(" ")[-1])
+                if "xstepsize" in line:
+                    dx = float(line.split(" ")[-1])
+                if "ystepsize" in line:
+                    dy = float(line.split(" ")[-1])
+                if "zstepsize" in line:
+                    dz = float(line.split(" ")[-1])
+                # if "Desc: Total simulation time:" in line:
+                #     dt = float(line.split("  ")[-2])
+                if "End: Header" in line:
                     break
-        return (z,y,x,c)
+        parms = {'shape':(z,y,x,c), 'dx':dx, 'dy':dy, 'dz':dz}
+        return parms
 
     def parse_script(self) -> None:
         """Parses the f.attrs["mx3"], matches common patterns and save them as attributes"""
@@ -145,11 +155,19 @@ class Make:
                 return i[1]
         return prefix
 
+    def _save_stepsize(self,parms:dict) -> None:
+        for key in ['dx','dy','dz']:
+            if key not in self.list_attrs():
+                with h5py.File(self.h5_path, "a") as f:
+                    f.attrs[key] = parms[key]
+
     def add_dset(self, out_path: str, prefix: str, name:Optional[str] =None, tmax:Optional[int]=None, force:bool=False) -> None:
         """Creates a dataset from an input .out folder path and a prefix (i.e. "m00")"""
         ovf_paths = sorted(glob(f"{out_path}/{prefix}*.ovf"))[:tmax]
         # load one file to initialize the h5 dataset with the correct shape
-        self._ovf_shape = self._get_ovf_shape(ovf_paths[0])
+        self._ovf_parms = self._get_ovf_parms(ovf_paths[0])
+        self._save_stepsize(self._ovf_parms)
+        self._ovf_shape = self._ovf_parms['shape']
         dset_shape = ((len(ovf_paths),)+self._ovf_shape)
         # number of bytes in the data used in self._load_ovf, (+1 is for the security number of ovf) 
         self._count = self._ovf_shape[0] * self._ovf_shape[1] * self._ovf_shape[2] * self._ovf_shape[3] + 1
@@ -176,9 +194,9 @@ class Make:
         """Automatically parse the load_path and will create datasets"""
         self._create_h5()
         out_path, mx3_path = self._get_paths(load_path)
-        self.add_table(f"{out_path}/table.txt")
-        self.add_mx3(mx3_path)
         try:
+            self.add_table(f"{out_path}/table.txt")
+            self.add_mx3(mx3_path)
             self.parse_script()
         except:
             pass
