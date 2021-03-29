@@ -1,5 +1,6 @@
 from typing import *
 import struct
+import os
 
 import h5py
 import numpy as np
@@ -13,11 +14,20 @@ from lir._plot import Plot
 class Lir(Make, Transform, Ovf, Plot):
     def __init__(self, h5_path: str, load_path: Optional[str] = None, tmax=None, force=False) -> None:
         self.force = force
-        self.h5_path = h5_path
-        self.name = h5_path.split("/")[-1][:-3]
+        
+        self.h5_path = self._clean_path(h5_path)
+        self.name = self.h5_path.split("/")[-1][:-3]
         if load_path is not None:
             self.make(load_path,tmax=tmax)
         self._getitem_dset: Optional[str] = None
+
+    def _clean_path(self,path):
+        path = os.path.abspath(path)
+        if path[-3:] != '.h5':
+            new_path = f"{path}.h5"
+            return new_path
+        else:
+            return path
 
     def __getitem__(
         self,
@@ -62,15 +72,6 @@ class Lir(Make, Transform, Ovf, Plot):
     def shape(self,dset:str):
         with h5py.File(self.h5_path, "r") as f:
             return f[dset].shape
-
-    def kvecs(self,dset:str):
-        with h5py.File(self.h5_path, "r") as f:
-            return f[dset].attrs['kvecs']
-
-    def freqs(self,dset:str):
-        with h5py.File(self.h5_path, "r") as f:
-            return f[dset].attrs['freqs']
-
 
     def t(self,script_name:str,ovf_folder:str="/mnt/g/Mathieu/simulations/stable",dset:str="stable",t:int=0) -> None:
         """Writes a new mx3 from the one saved in this h5 file, it will add the load line too"""
@@ -129,17 +130,18 @@ class Lir(Make, Transform, Ovf, Plot):
 
             print("Global Attributes:")
             for key,val in f.attrs.items():
-                if key != "mx3" and key != "script":
-                    print(f"    {key:<15}= {val}")
-                else:
+                if key in ['mx3','script']:
+                    val = val.replace('\n','')
                     print(f"    {key:<15}= {val[:10]}...")
+                else:
+                    print(f"    {key:<15}= {val}")
 
-    def list_dsets(self) -> list:
+    def dsets(self) -> list:
         with h5py.File(self.h5_path, "r") as f:
             dsets = list(f.keys())
         return dsets
         
-    def list_attrs(self) -> list:
+    def attrs(self) -> list:
         with h5py.File(self.h5_path, "r") as f:
             attrs = list(f.attrs.keys())
         return attrs

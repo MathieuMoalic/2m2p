@@ -5,6 +5,7 @@ import re
 import h5py
 import multiprocessing as mp
 from typing import Tuple, List, Optional
+from tqdm.notebook import tqdm
 
 class Make:
 
@@ -178,11 +179,9 @@ class Make:
             if force and name in list(f.keys()):
                 del f[name]
             dset = f.create_dataset(name, dset_shape, np.float32)
-            pool = mp.Pool(processes=int(mp.cpu_count() - 1))
-            for i, data in enumerate(pool.imap(self._load_ovf, ovf_paths)):
-                dset[i] = data
-            pool.close()
-            pool.join()
+            with mp.Pool(processes=int(mp.cpu_count())) as p:
+                for i, data in enumerate(tqdm(p.imap(self._load_ovf, ovf_paths), leave=False, desc=name, total=len(ovf_paths))):
+                    dset[i] = data
 
     def add_np_dset(self,arr:np.ndarray,name:str,force:bool =False):
         if force and name in list(f.keys()):

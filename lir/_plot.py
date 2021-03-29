@@ -11,9 +11,11 @@ class Plot:
         kmin = kmid - kwidth
         kmax = kmid + kwidth
         arr = self[dset][fmin:fmax,kmin:kmax]
-        kvecs = self.kvecs(dset)[kmin:kmax]
-        freqs = self.freqs(dset)[fmin:fmax]
+        kvecs = self.kvecs[kmin:kmax]
+        freqs = self.freqs[fmin:fmax]
         ax.imshow(arr,origin='lower',aspect='auto',cmap='cmo.amp',extent=[kvecs.min(), kvecs.max(), freqs.min(), freqs.max()])
+        ax.set_ylabel("Frequency (GHz)")
+        ax.set_ylabel(r"Wavevectors (nm$^{-1}$)")
         fig.colorbar(ax.get_images()[0],ax=ax)
         return ax
 

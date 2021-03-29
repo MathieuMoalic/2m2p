@@ -1,5 +1,7 @@
 import multiprocessing as mp
 import dask.array as da 
+from dask.distributed import Client, progress
+import psutil
 import numpy as np
 import h5py
 from typing import Tuple, Union
@@ -7,13 +9,30 @@ from typing import Tuple, Union
 
 class Transform:
 
-    def get_freqs(self,dset) -> np.ndarray:
+    @property
+    def freqs(self) -> np.ndarray:
         """returns frequencies in GHz depending on the number of t points in the dset and value of dt"""
-        return np.fft.rfftfreq(dset.shape[0], self.dt * 1e9)
+        with h5py.File(self.h5_path, "r") as f:
+            freqs = np.fft.rfftfreq(f['disp'].shape[0], self.dt * 1e9)
+        return freqs
 
-    def get_kvecs(self,dset) -> np.ndarray:
+    @property
+    def kvecs(self) -> np.ndarray:
         """returns wavevectors"""
-        return np.fft.fftshift(np.fft.fftfreq(dset.shape[1], self.dx) * 2 * np.pi) / 1e6
+        with h5py.File(self.h5_path, "r") as f:
+            kvecs = np.fft.fftshift(np.fft.fftfreq(f['disp'].shape[1], self.dx) * 2 * np.pi) / 1e6
+        return kvecs
+        
+    def start_dask_client(self,port=23232):
+        print(f'Dask client started at 127.0.0.1:{port} with {ram} GB of ram')
+        ram = int(psutil.virtual_memory().free/1e9*0.95)
+        client = Client(
+            processes=False, 
+            threads_per_worker=mp.cpu_count(),
+            n_workers=1,
+            memory_limit= f"{ram} GB"
+            )
+        return client
 
     def disp(
         self,
@@ -27,7 +46,8 @@ class Transform:
             2,
         ),
         save: bool = True,
-        force: bool = False
+        force: bool = False,
+        tmax:int = None,
     ) -> np.ndarray:
         """Calculates and returns the dispersions using dask"""
         if name in self.list_dsets():
@@ -45,7 +65,7 @@ class Transform:
                     return
                 else:
                     name = input_string
-
+        dask_client = self.start_dask_client()
         with h5py.File(self.h5_path, "r") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 15, None, None))
             arr = arr[slices]  # slice
@@ -68,12 +88,11 @@ class Transform:
             arr = da.absolute(arr)  # from complex to real
             arr = da.sum(arr, axis=1)  # sum y
             out = arr.compute()
+        dask_client.close()
 
         if save:
             with h5py.File(self.h5_path, "a") as f:
                 dset_disp = f.create_dataset(name, data=out)
-                dset_disp.attrs["freqs"] = self.get_freqs(dset_disp)
-                dset_disp.attrs["kvecs"] = self.get_kvecs(dset_disp)
                 dset_disp.attrs["slices"] = str(slices)
                 dset_disp.attrs["dset"] = dset
 
