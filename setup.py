@@ -1,10 +1,14 @@
-from distutils.core import setup
+from setuptools import find_packages, setup
 
-setup(name='Distutils',
-      version='1.0',
-      description='Python Distribution Utilities',
-      author='Greg Ward',
-      author_email='gward@python.net',
-      url='https://www.python.org/sigs/distutils-sig/',
-      packages=['distutils', 'distutils.command'],
-     )
+setup(
+    name="lir",
+    version="0.1",
+    description="micromagnetic post processing library",
+    author="Mathieu Moalic",
+    author_email="matmoa@pm.me",
+    platforms=["any"],
+    license="GPL-3.0",
+    url="https://github.com/MathieuMoalic/lir",
+    packages=find_packages(),
+    install_requires=[i.strip() for i in open("requirements.txt").readlines()],
+)
