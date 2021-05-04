@@ -10,7 +10,7 @@ from ._plot import imshow
 from ._disp import Disp
 
 
-class Lyr:
+class Llyr:
     def __init__(
         self, h5_path: str, load_path: Optional[str] = None, tmax=None, force=False
     ) -> None:
@@ -21,10 +21,10 @@ class Lyr:
         self._getitem_dset: Optional[str] = None
 
     def __repr__(self):
-        return f"Lyr('{self.h5_path}')"
+        return f"Llyr('{self.h5_path}')"
 
     def __str__(self):
-        return f"Lyr('{self.h5_path}')"
+        return f"Llyr('{self.h5_path}')"
 
     def _clean_path(self, path):
         path = os.path.abspath(path)
@@ -37,7 +37,7 @@ class Lyr:
     def __getitem__(
         self,
         index: Union[str, Tuple[Union[int, slice], ...]],
-    ) -> Union["Lyr", float, np.ndarray]:
+    ) -> Union["Llyr", float, np.ndarray]:
         with h5py.File(self.h5_path, "r") as f:
 
             # if slicing

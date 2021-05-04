@@ -1,4 +1,4 @@
-# Lyr
+# Llyr
 
 micromagnetic post processing library
 
