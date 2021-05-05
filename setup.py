@@ -2,7 +2,7 @@ from setuptools import find_packages, setup
 
 setup(
     name="llyr",
-    version="0.1",
+    version="0.1.1",
     description="micromagnetic post processing library",
     author="Mathieu Moalic",
     author_email="matmoa@pm.me",
