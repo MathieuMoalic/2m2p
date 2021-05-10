@@ -1,6 +1,7 @@
 from typing import Tuple, List, Optional
 from glob import glob
 import os
+import re
 import multiprocessing as mp
 
 import h5py
@@ -26,8 +27,6 @@ class Make:
                 tableds = f.create_dataset(dset_name, data=data)
                 tableds.attrs["header"] = header
                 f.attrs["dt"] = dt
-        else:
-            print("table.txt not found")
 
     def _get_paths(self, load_path: str) -> Tuple[str, str]:
         """Cleans the input string and return the path for .out folder and .mx3 file"""
@@ -62,13 +61,9 @@ class Make:
 
     def _get_dset_prefixes(self, out_path: str) -> List[str]:
         """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""
-        prefixes = [
-            i.split("/")[-1].replace("000000.ovf", "")
-            for i in glob(f"{out_path}/*00000.ovf")
-        ]
-        if os.path.isfile(f"{out_path}/stable.ovf"):
-            prefixes.append("stable")
-        return prefixes
+        paths = glob(f"{out_path}/*.ovf")
+        prefixes = {re.sub(r"_?[\d.]*.ovf", "", path.split("/")[-1]) for path in paths}
+        return list(prefixes)
 
     def _get_dset_name(self, prefix: str) -> str:
         """From the prefix, this tries to return a human readable version"""
@@ -77,7 +72,7 @@ class Make:
             ("m_zrange", "WG"),
             ("B_demag_xrange", "ND_B"),
             ("B_demag_zrange", "WG_B"),
-            ("stable", "stable"),
+            # ("stable", "stable"),
         )
         for i in common_prefix_to_name:
             if i[0] in prefix:

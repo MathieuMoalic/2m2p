@@ -85,7 +85,7 @@ class Llyr:
             f.writelines(self["mx3"])
 
     def save_ovf(self, ovf_path: str, dset: str, t: int = 0) -> None:
-        arr = np.expand_dims(self[dset][t], axis=0)
+        arr = self[dset][t]
         save_ovf(ovf_path, arr, self.dx, self.dy, self.dz)
 
     def imshow(self, dset, t=-1, zero=True):
@@ -97,7 +97,7 @@ class Llyr:
 
     @property
     def mx3(self) -> str:
-        return self["mx3"]
+        print(self["mx3"])
 
     @property
     def dt(self) -> float:

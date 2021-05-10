@@ -2,13 +2,13 @@ import matplotlib.pyplot as plt
 import cmocean  # pylint: disable=unused-import
 
 
-def imshow(self, dset: str, zero: bool = True, t: int = -1):
+def imshow(self, dset: str, zero: bool = True, t: int = -1, c: int = 2):
     fig, ax = plt.subplots(1, 1, dpi=200)
     if zero:
-        arr = self[dset][[0, t], 0, :, :, 2]
+        arr = self[dset][[0, t], 0, :, :, c]
         arr = arr[1] - arr[0]
     else:
-        arr = self[dset][t, 0, :, :, 2]
+        arr = self[dset][t, 0, :, :, c]
     amin, amax = arr.min(), arr.max()
     if amin < 0 and amax > 0:
         cmap = "cmo.balance"
@@ -26,6 +26,7 @@ def imshow(self, dset: str, zero: bool = True, t: int = -1):
         extent=[0, arr.shape[1] * self.dx * 1e9, 0, arr.shape[0] * self.dy * 1e9],
     )
     ax.set(
+        title=self.name,
         xlabel="x (nm)",
         ylabel="y (nm)",
     )
