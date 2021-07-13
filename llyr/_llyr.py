@@ -5,14 +5,13 @@ import numpy as np
 from ._plot import Plot
 from ._h5 import H5
 from ._make import Make
-
-# from ._disp import Disp
+from ._ovf import save_ovf
 
 
 class Llyr:
     def __init__(self, h5_path: str) -> None:
         self.h5 = H5(h5_path)
-        self.name = h5_path.split("/")[-1]
+        self.name = h5_path.split("/")[-1].replace(".h5", "")
         self._getitem_dset: Optional[str] = None
         self.plot = Plot(self)
 
@@ -99,3 +98,7 @@ class Llyr:
                 print(f"    {key:<15}= {val[:10]}...")
             else:
                 print(f"    {key:<15}= {val}")
+
+    def save_as_ovf(self, arr: np.ndarray, name: str):
+        path = self.h5.path.replace(f"{self.name}", f"{name}.ovf")
+        save_ovf(path, arr, self.dx, self.dy, self.dz)
