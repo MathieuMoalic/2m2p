@@ -11,17 +11,17 @@ from ._ovf import get_ovf_parms
 
 
 class Make:
-    def __init__(self, h5, load_path, tmax, override, delete_out):
-        self.h5 = h5
-        h5.create_h5(override)
+    def __init__(self, llyr, load_path, tmax=None, override=False, delete_out=True):
+        self.llyr = llyr
+        self.ts = 0
+        llyr.create_h5(override)
         out_path, mx3_path = self._get_paths(load_path)
-        self.add_mx3(mx3_path)
 
-        self.add_table(f"{out_path}/table.txt")
         self.add_mx3(mx3_path)
         dset_prefixes = self._get_dset_prefixes(out_path)
         for prefix, name in dset_prefixes.items():
             self.make_dset(out_path, prefix, name=name, tmax=tmax)
+        self.add_table(f"{out_path}/table.txt")
         if delete_out:
             shutil.rmtree(out_path)
 
@@ -30,13 +30,17 @@ class Make:
         load_path = load_path.replace(".mx3", "").replace(".out", "").replace(".h5", "")
         out_path = f"{load_path}.out"
         mx3_path = f"{load_path}.mx3"
+        if not os.path.exists(out_path):
+            raise NameError(f"{out_path} not found")
+        if not os.path.exists(mx3_path):
+            raise NameError(f"{mx3_path} not found")
         return out_path, mx3_path
 
     def add_mx3(self, mx3_path: str) -> None:
         """Adds the mx3 file to the f.attrs"""
         if os.path.isfile(mx3_path):
             with open(mx3_path, "r") as mx3:
-                self.h5.add_attr("mx3", mx3.read())
+                self.llyr.add_attr("mx3", mx3.read())
         else:
             print(f"{mx3_path} not found")
 
@@ -46,11 +50,11 @@ class Make:
             with open(table_path, "r") as table:
                 header = table.readline()
                 data = np.loadtxt(table).T
-                dt = (data[0, -1] - data[0, 0]) / (data.shape[1] - 1)
+                dt = (data[0, -1] - data[0, -self.ts]) / (self.ts - 1)
 
-            self.h5.add_dset(data, dset_name)
-            self.h5.add_attr("header", header, dset_name)
-            self.h5.add_attr("dt", dt)
+            self.llyr.add_dset(data, dset_name)
+            self.llyr.add_attr("header", header, dset_name)
+            self.llyr.add_attr("dt", dt)
 
     def _get_dset_prefixes(self, out_path: str) -> dict:
         """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""
@@ -77,12 +81,15 @@ class Make:
     ) -> None:
         """Creates a dataset from an input .out folder path and a prefix (i.e. "m00")"""
         ovf_paths = sorted(glob.glob(f"{out_path}/{prefix}*.ovf"))[:tmax]
+        # this is to calculate dt
+        if self.ts < len(ovf_paths):
+            self.ts = len(ovf_paths)
         # load one file to initialize the h5 dataset with the correct shape
         ovf_parms = get_ovf_parms(ovf_paths[0])
         for key in ["dx", "dy", "dz"]:
-            if key not in self.h5.attrs:
-                self.h5.add_attr(key, ovf_parms[key])
+            if key not in self.llyr.attrs:
+                self.llyr.add_attr(key, ovf_parms[key])
 
         dset_shape = (len(ovf_paths),) + ovf_parms["shape"]
         # name = self._get_dset_prefixes(prefix)
-        self.h5.load_dset(name, dset_shape, ovf_paths)
+        self.llyr.load_dset(name, dset_shape, ovf_paths)

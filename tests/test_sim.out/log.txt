@@ -1,5 +1,5 @@
 //mumax 3.10 [windows_amd64 go1.11.6(gc) CUDA-11.0]
-//GPU info: NVIDIA GeForce RTX 2080 SUPER(8192MB), CUDA Driver 11.3, cc=7.5, using cc=75 PTX
+//GPU info: GeForce RTX 2080 SUPER(8192MB), CUDA Driver 11.0, cc=7.5, using cc=75 PTX
 //(c) Arne Vansteenkiste, Dynamat LAB, Ghent University, Belgium
 //This is free software without any warranty. See license.txt
 //********************************************************************//
@@ -22,6 +22,8 @@ m.SetInShape(nd, uniform(1, 0, 0))
 Msat = 800e3
 aex = 13e-12
 alpha = 0.01
+relax()
+saveas(m, "stable")
 t_sampl := 1e-10
 tableadd(B_ext)
 tableautosave(t_sampl)
