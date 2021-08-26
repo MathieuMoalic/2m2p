@@ -7,12 +7,11 @@ import dask.array as da
 import h5py
 import matplotlib.pyplot as plt
 from tqdm import tqdm
+import cmocean  # pylint: disable=unused-import
 
 # pylint: disable=import-error
 from colorconversion.arrays import hsl2rgb  # type: ignore
 
-# from ._plot import Plot
-# from ._h5 import H5
 from ._make import Make
 from ._ovf import save_ovf, load_ovf
 
@@ -273,10 +272,10 @@ class Llyr:
             arr = arr.sum(axis=1)  # sum all z
             arr = da.subtract(arr, arr[0])
             arr = da.subtract(arr, da.average(arr, axis=0)[None, :])
-            arr = da.multiply(arr, np.hanning(arr.shape[0])[:, None, None, None])
+            arr = da.multiply(arr, np.hanning(arr.shape[0])[:, None, None])
             arr = da.swapaxes(arr, 0, -1)
             arr = da.reshape(
-                arr, (arr.shape[0] * arr.shape[1] * arr.shape[2], arr.shape[3])
+                arr, (arr.shape[0] * arr.shape[1], arr.shape[2])
             )  # flatten all the cells
             arr = da.fft.rfft(arr)
             arr = da.absolute(arr)
@@ -293,7 +292,7 @@ class Llyr:
 
     def imshow(self, dset: str, zero: bool = True, t: int = -1, c: int = 2, ax=None):
         if ax is None:
-            fig, ax = plt.subplots(1, 1, dpi=200)
+            fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         else:
             fig = ax.figure
         if zero:
@@ -331,7 +330,7 @@ class Llyr:
         return ax
 
     def snapshot(self, dset: str, z: int = 0, t: int = -1):
-        fig, ax = plt.subplots(1, 1, dpi=200)
+        fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         arr = self[dset][t, z, :, :, :]
         arr = np.ma.masked_equal(arr, 0)
         u = arr[:, :, 0]
@@ -344,8 +343,8 @@ class Llyr:
         hsl[:, :, 1] = np.sqrt(u ** 2 + v ** 2 + z ** 2)
         hsl[:, :, 2] = (z + 1) / 2
         rgb = hsl2rgb(hsl)
-        stepx = int(u.shape[1] / 40)
-        stepy = int(u.shape[1] / 40)
+        stepx = max(int(u.shape[1] / 40), 1)
+        stepy = max(int(u.shape[0] / 40), 1)
         x, y = np.meshgrid(
             np.arange(0, u.shape[1], stepx) * self.dx * 1e9,
             np.arange(0, u.shape[0], stepy) * self.dy * 1e9,

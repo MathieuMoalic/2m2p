@@ -12,7 +12,7 @@ setcellsize(dx, dy, dz)
 nd_size := 30e-9
 nd := cylinder(nd_size, dz)
 setgeom(nd)
-m.SetInShape(nd, uniform(1,0,0))
+m.SetInShape(nd, Neelskyrmion(1, -1))
 
 
 // Waveguide

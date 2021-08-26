@@ -50,7 +50,9 @@ class Make:
             with open(table_path, "r") as table:
                 header = table.readline()
                 data = np.loadtxt(table).T
-                dt = (data[0, -1] - data[0, -self.ts]) / (self.ts - 1)
+                times = data[0]
+                dt = (times[-1] - times[0]) / len(times)
+                print(dt)
 
             self.llyr.add_dset(data, dset_name)
             self.llyr.add_attr("header", header, dset_name)
