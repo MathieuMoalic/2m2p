@@ -196,6 +196,10 @@ class Llyr:
         with h5py.File(self.path, "r") as f:
             return f[dset][slices]
 
+    def get_attrs(self, dset):
+        with h5py.File(self.path, "r") as f:
+            return dict(f[dset].attrs)
+
     def load_dset(self, name: str, dset_shape: tuple, ovf_paths: list) -> None:
         with h5py.File(self.path, "a") as f:
             dset = f.create_dataset(name, dset_shape, np.float32)
@@ -266,6 +270,13 @@ class Llyr:
         xslice=slice(None),
         cslice=2,
     ):
+        if "dt" not in self.attrs:
+            print("Add the 'dt' attribute before calculating the fft")
+            return
+        if name is not None and f"{name}/arr" in self.dsets and not override:
+            raise NameError(
+                f"'{name}' already exists, you can use 'override=True' to replace it"
+            )
         with h5py.File(self.path, "r") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
             arr = arr[(tslice, zslice, yslice, xslice, cslice)]
@@ -289,6 +300,16 @@ class Llyr:
             self.add_dset(freqs, f"{name}/freqs", override)
 
     # plotting
+
+    def fft_tb(self, dset: str):
+        y = self[f"table/{dset}"][:]
+        x = np.fft.rfftfreq(y.shape[0], self.dt) * 1e-9
+        y -= y[0]
+        y -= np.average(y)
+        y = np.multiply(y, np.hanning(y.shape[0]))
+        y = np.fft.rfft(y)
+        y = np.abs(y)
+        return x, y
 
     def imshow(self, dset: str, zero: bool = True, t: int = -1, c: int = 2, ax=None):
         if ax is None:
@@ -345,6 +366,7 @@ class Llyr:
         rgb = hsl2rgb(hsl)
         stepx = max(int(u.shape[1] / 40), 1)
         stepy = max(int(u.shape[0] / 40), 1)
+        scale = 1 / max(stepx, stepy)
         x, y = np.meshgrid(
             np.arange(0, u.shape[1], stepx) * self.dx * 1e9,
             np.arange(0, u.shape[0], stepy) * self.dy * 1e9,
@@ -356,6 +378,9 @@ class Llyr:
             u[::stepy, ::stepx],
             v[::stepy, ::stepx],
             alpha=alphas[::stepy, ::stepx],
+            angles="xy",
+            scale_units="xy",
+            scale=scale,
         )
 
         ax.imshow(
