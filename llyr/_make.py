@@ -22,6 +22,7 @@ class Make:
         for prefix, name in dset_prefixes.items():
             self.make_dset(out_path, prefix, name=name, tmax=tmax)
         self.add_table(f"{out_path}/table.txt")
+        self.llyr.add_attr("version", "1.0.0")
         if delete_out:
             shutil.rmtree(out_path)
 
@@ -50,13 +51,16 @@ class Make:
             with open(table_path, "r") as table:
                 header = table.readline()
                 data = np.loadtxt(table).T
-                times = data[0]
-                dt = (times[-1] - times[0]) / len(times)
-                print(dt)
-
-            self.llyr.add_dset(data, dset_name)
-            self.llyr.add_attr("header", header, dset_name)
+            # Add dt
+            times = data[0]
+            dt = (times[-1] - times[0]) / (len(times) - 1)
             self.llyr.add_attr("dt", dt)
+            # add table data
+            clean_header = [
+                i.split(" (")[0].replace("# ", "") for i in header.split("\t")
+            ]
+            for i, h in enumerate(clean_header):
+                self.llyr.add_dset(data[i], f"{dset_name}/{h}")
 
     def _get_dset_prefixes(self, out_path: str) -> dict:
         """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""
