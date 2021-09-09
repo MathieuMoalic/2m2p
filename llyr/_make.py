@@ -5,19 +5,33 @@ import glob
 import shutil
 
 import numpy as np
+import imageio
 
 from ._utils import get_config
 from ._ovf import get_ovf_parms
 
 
 class Make:
-    def __init__(self, llyr, load_path, tmax=None, override=False, delete_out=True):
+    def __init__(
+        self,
+        llyr,
+        load_path=None,
+        tmax=None,
+        override=False,
+        delete_out=True,
+        delete_mx3=False,
+    ):
+        if load_path is None:
+            load_path = llyr.path.replace(".h5", ".out")
         self.llyr = llyr
         self.ts = 0
+        self.override = override
         llyr.create_h5(override)
-        out_path, mx3_path = self._get_paths(load_path)
+        out_path, mx3_path, logs_path = self._get_paths(load_path)
 
-        self.add_mx3(mx3_path)
+        self.add_mx3(mx3_path, delete_mx3=delete_mx3)
+        self.add_logs(logs_path)
+        self.add_snapshots(out_path)
         dset_prefixes = self._get_dset_prefixes(out_path)
         for prefix, name in dset_prefixes.items():
             self.make_dset(out_path, prefix, name=name, tmax=tmax)
@@ -31,19 +45,37 @@ class Make:
         load_path = load_path.replace(".mx3", "").replace(".out", "").replace(".h5", "")
         out_path = f"{load_path}.out"
         mx3_path = f"{load_path}.mx3"
+        logs_path = f"{out_path}/log.txt"
         if not os.path.exists(out_path):
             raise NameError(f"{out_path} not found")
         if not os.path.exists(mx3_path):
             raise NameError(f"{mx3_path} not found")
-        return out_path, mx3_path
+        return out_path, mx3_path, logs_path
 
-    def add_mx3(self, mx3_path: str) -> None:
+    def add_snapshots(self, out_path: str):
+        snapshots_paths = glob.glob(f"{out_path}/*.png")
+        for p in snapshots_paths:
+            snapshot = imageio.imread(p)
+            name = p.split("/")[-1].replace(".png", "")
+            self.llyr.add_dset(snapshot, f"snapshots/{name}", override=self.override)
+
+    def add_mx3(self, mx3_path: str, delete_mx3: bool = False) -> None:
         """Adds the mx3 file to the f.attrs"""
         if os.path.isfile(mx3_path):
             with open(mx3_path, "r") as mx3:
                 self.llyr.add_attr("mx3", mx3.read())
         else:
             print(f"{mx3_path} not found")
+        if delete_mx3:
+            os.remove(mx3_path)
+
+    def add_logs(self, logs_path: str) -> None:
+        """Adds the logs file to the f.attrs"""
+        if os.path.isfile(logs_path):
+            with open(logs_path, "r") as logs:
+                self.llyr.add_attr("logs", logs.read())
+        else:
+            print(f"{logs_path} not found")
 
     def add_table(self, table_path: str, dset_name: str = "table") -> None:
         """Adds a the mumax table.txt file as a dataset"""
@@ -60,7 +92,7 @@ class Make:
                 i.split(" (")[0].replace("# ", "") for i in header.split("\t")
             ]
             for i, h in enumerate(clean_header):
-                self.llyr.add_dset(data[i], f"{dset_name}/{h}")
+                self.llyr.add_dset(data[i], f"{dset_name}/{h}", override=self.override)
 
     def _get_dset_prefixes(self, out_path: str) -> dict:
         """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""

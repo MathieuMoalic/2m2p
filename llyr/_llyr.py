@@ -19,8 +19,12 @@ from ._ovf import save_ovf, load_ovf
 class Llyr:
     def __init__(self, path: str) -> None:
         path = os.path.abspath(path)
-        if path[-3:] != ".h5":
-            self.path = f"{path}.h5"
+        if path[-4:] == ".out":
+            self.path = path[:-4]
+        else:
+            self.path = path
+        if self.path[-3:] != ".h5":
+            self.path = f"{self.path}.h5"
         else:
             self.path = path
         self.name = self.path.split("/")[-1].replace(".h5", "")
@@ -29,9 +33,9 @@ class Llyr:
     def make(
         self,
         load_path: Optional[str] = None,
-        tmax=None,
-        override=False,
-        delete_out=False,
+        tmax: Optional[int] = None,
+        override: bool = False,
+        delete_out: bool = False,
     ):
         Make(self, load_path, tmax, override, delete_out)
         return self
@@ -90,17 +94,83 @@ class Llyr:
         return self.attrs["dz"]
 
     @property
-    def p(self) -> None:
+    def pp(self) -> None:
         print("Datasets:")
         for dset_name, dset_shape in self.dsets.items():
             print(f"    {dset_name:<15}: {dset_shape}")
         print("Global Attributes:")
         for key, val in self.attrs.items():
-            if key in ["mx3", "script"]:
+            if key in ["mx3", "script", "logs"]:
                 val = val.replace("\n", "")
                 print(f"    {key:<15}= {val[:10]}...")
             else:
                 print(f"    {key:<15}= {val}")
+
+    @property
+    def p(self):
+        dsets, groups = {}, {}
+        for name, shape in self.dsets.items():
+            if "/" in name:
+                group, dset = name.split("/")
+                if group not in groups:
+                    groups[group] = {}
+                groups[group][dset] = shape
+            else:
+                dsets[name] = shape
+        a = ["" for i in range(12)]
+        i = 0
+        a[0] = "Datasets "
+        d1 = len(a[0])
+        for k, v in dsets.items():
+            if i == 0:
+                q = "┬"
+            else:
+                q = "├"
+            padding1 = (d1 - len(a[i])) * " "
+            a[i] += f"{padding1}{q}─ {k} : {v}"
+            i += 1
+        length1 = len(dsets) + len(groups)
+        for k, v in groups.items():
+            j = 0
+            padding1 = (d1 - len(a[i])) * " "
+            a[i] += f"{padding1}├─ {k} ┬"
+            d2 = (len(a[i]) - d1 - 2) * " "
+            length2 = len(v)
+            for k2, v2 in v.items():
+                if i > length1:
+                    k1 = " "
+                else:
+                    k1 = "├"
+                if j == 0:
+                    q2 = ""
+                elif j == length2 - 1:
+                    q2 = padding1 + k1 + d2 + "└"
+                else:
+                    q2 = padding1 + k1 + d2 + "├"
+                a[i] += f"{q2}─ {k2} : {v2}"
+                i += 1
+                j += 1
+
+        attrs = ["Global Attributes"]
+        for key, val in self.attrs.items():
+            if key in ["mx3", "script", "logs"]:
+                val = val.replace("\n", "")
+                attrs.append(f"    {key:<10}= {val[:10]}...")
+            else:
+                attrs.append(f"    {key:<10}= {val:.4}")
+        for i in range(max(len(a), len(attrs))):
+            if i >= len(attrs):
+                attrs.append(45 * " ")
+            elif i >= len(a):
+                a.append(" ")
+            else:
+                diff_a = 45 - len(attrs[i])
+                attrs[i] += diff_a * " "
+
+        for i, _ in enumerate(a):
+            a[i] = attrs[i] + a[i]
+        for aa in a:
+            print(aa)
 
     @property
     def dsets(self) -> dict:
@@ -301,14 +371,16 @@ class Llyr:
 
     # plotting
 
-    def fft_tb(self, dset: str):
-        y = self[f"table/{dset}"][:]
+    def fft_tb(self, dset: str, tmax: int = None, normalize: bool = True):
+        y = self[f"table/{dset}"][slice(tmax)]
         x = np.fft.rfftfreq(y.shape[0], self.dt) * 1e-9
         y -= y[0]
         y -= np.average(y)
         y = np.multiply(y, np.hanning(y.shape[0]))
         y = np.fft.rfft(y)
         y = np.abs(y)
+        if normalize:
+            y /= y.max()
         return x, y
 
     def imshow(self, dset: str, zero: bool = True, t: int = -1, c: int = 2, ax=None):
@@ -350,8 +422,11 @@ class Llyr:
 
         return ax
 
-    def snapshot(self, dset: str, z: int = 0, t: int = -1):
-        fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
+    def snapshot(self, dset: str, z: int = 0, t: int = -1, ax=None):
+        if ax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
+        else:
+            fig = ax.figure
         arr = self[dset][t, z, :, :, :]
         arr = np.ma.masked_equal(arr, 0)
         u = arr[:, :, 0]
