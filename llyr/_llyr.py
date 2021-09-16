@@ -117,7 +117,7 @@ class Llyr:
                 groups[group][dset] = shape
             else:
                 dsets[name] = shape
-        a = ["" for i in range(12)]
+        a = ["" for i in range(1 + max(len(self.attrs), len(self.dsets)))]
         i = 0
         a[0] = "Datasets "
         d1 = len(a[0])
@@ -129,7 +129,6 @@ class Llyr:
             padding1 = (d1 - len(a[i])) * " "
             a[i] += f"{padding1}{q}─ {k} : {v}"
             i += 1
-        length1 = len(dsets) + len(groups)
         for k, v in groups.items():
             j = 0
             padding1 = (d1 - len(a[i])) * " "
@@ -137,16 +136,12 @@ class Llyr:
             d2 = (len(a[i]) - d1 - 2) * " "
             length2 = len(v)
             for k2, v2 in v.items():
-                if i > length1:
-                    k1 = " "
-                else:
-                    k1 = "├"
                 if j == 0:
                     q2 = ""
                 elif j == length2 - 1:
-                    q2 = padding1 + k1 + d2 + "└"
+                    q2 = padding1 + " " + d2 + "└"
                 else:
-                    q2 = padding1 + k1 + d2 + "├"
+                    q2 = padding1 + " " + d2 + "├"
                 a[i] += f"{q2}─ {k2} : {v2}"
                 i += 1
                 j += 1
