@@ -97,14 +97,14 @@ class Llyr:
     def pp(self) -> None:
         print("Datasets:")
         for dset_name, dset_shape in self.dsets.items():
-            print(f"    {dset_name:<15}: {dset_shape}")
+            print(f"    {dset_name:<20}: {dset_shape}")
         print("Global Attributes:")
         for key, val in self.attrs.items():
             if key in ["mx3", "script", "logs"]:
                 val = val.replace("\n", "")
-                print(f"    {key:<15}= {val[:10]}...")
+                print(f"    {key:<20}= {val[:10]}...")
             else:
-                print(f"    {key:<15}= {val}")
+                print(f"    {key:<20}= {val}")
 
     @property
     def p(self):
@@ -196,6 +196,10 @@ class Llyr:
             self.dy,
             self.dz,
         )
+
+    @property
+    def snap(self):
+        self.snapshot_png("stable")
 
     # h5 functions
 
@@ -364,8 +368,6 @@ class Llyr:
             self.add_dset(arr, f"{name}/arr", override)
             self.add_dset(freqs, f"{name}/freqs", override)
 
-    # plotting
-
     def fft_tb(self, dset: str, tmax: int = None, normalize: bool = True):
         y = self[f"table/{dset}"][slice(tmax)]
         x = np.fft.rfftfreq(y.shape[0], self.dt) * 1e-9
@@ -377,6 +379,8 @@ class Llyr:
         if normalize:
             y /= y.max()
         return x, y
+
+    # plotting
 
     def imshow(self, dset: str, zero: bool = True, t: int = -1, c: int = 2, ax=None):
         if ax is None:
@@ -416,6 +420,18 @@ class Llyr:
         fig.colorbar(ax.get_images()[0], ax=ax)
 
         return ax
+
+    def snapshot_png(self, image: str):
+        arr = self[f"snapshots/{image}"][:]
+        fig, ax = plt.subplots(1, 1, figsize=(4, 2))
+        ax.imshow(
+            arr,
+            origin="lower",
+            extent=[0, arr.shape[0] * self.dy * 1e9, 0, arr.shape[1] * self.dx * 1e9],
+        )
+        ax.set_ylabel(r"$y$ (nm)")
+        ax.set_xlabel(r"$x$ (nm)")
+        fig.tight_layout()
 
     def snapshot(self, dset: str, z: int = 0, t: int = -1, ax=None):
         if ax is None:
@@ -506,4 +522,102 @@ class Llyr:
             verticalalignment="center",
             transform=cb.transAxes,
         )
+        fig.tight_layout()
+
+    def mode(self, dset: str, f: float, c: int):
+        if f"modes/{dset}/arr" not in self.dsets:
+            self.calculate_modes(dset)
+        fi = (np.abs(self[f"modes/{dset}/freqs"][:] - f)).argmin()
+        return self[f"modes/{dset}/arr"][fi, :, :, c]
+
+    def calculate_modes(self, dset: str, z: int = 0, override=False):
+        arr = self[dset][:, z, :, :, :]
+        s = arr.shape
+        pool = mp.Pool(processes=int(mp.cpu_count() - 1))
+        arr = arr.reshape(s[0], np.prod(s[1:])).T
+        arr = np.array(pool.map(np.fft.rfft, arr), dtype=np.complex64)
+        pool.close()
+        pool.join()
+        arr = arr.T.reshape(int(s[0] / 2 + 1), s[1], s[2], s[3])
+        self.add_dset(arr, f"modes/{dset}/arr", override=override)
+        freqs = np.fft.rfftfreq(s[0], self.dt) * 1e-9
+        self.add_dset(freqs, f"modes/{dset}/freqs", override=override)
+
+    def plot_mode(self, dset: str, f: float, c: int):
+        mode = self.mode(dset, f, c)
+        max_amp = np.abs(mode).max()
+        fi = (np.abs(self[f"modes/{dset}/freqs"][:] - f)).argmin()
+        ff = self[f"modes/{dset}/freqs"][:][fi]
+
+        fig, (ax0, ax1, ax2) = plt.subplots(1, 3)
+
+        ax0.imshow(np.abs(mode), cmap="inferno")
+        ax0.set_title(f"Amps = {max_amp:.3f}")
+        fig.colorbar(ax0.get_images()[0], ax=ax0)
+
+        ax1.imshow(
+            np.angle(mode), cmap="hsv", vmin=-np.pi, vmax=np.pi, interpolation="None"
+        )
+        fig.colorbar(ax1.get_images()[0], ax=ax1)
+        ax1.set_title(f"f = {ff:.3f} GHz")
+
+        alphas = np.abs(mode) / np.abs(mode).max()
+        ax2.imshow(np.angle(mode), alpha=alphas, cmap="hsv", vmin=-np.pi, vmax=np.pi)
+        fig.colorbar(ax2.get_images()[0], ax=ax2)
+
+    def plot_modes(self, dset: str, f: float):
+        mode1 = self.mode(dset, f, 0)
+        mode2 = self.mode(dset, f, 1)
+        mode3 = self.mode(dset, f, 2)
+        modes = np.array([mode1, mode2, mode3])
+        modes_max = np.abs(modes).max()
+        extent = [0, mode1.shape[0] * self.dy * 1e9, 0, mode1.shape[1] * self.dx * 1e9]
+
+        fig, axes = plt.subplots(3, 3, sharex=True, sharey=True, figsize=(4, 4))
+        for c in range(3):
+            mode_abs = np.abs(modes[c])
+            mode_ang = np.angle(modes[c])
+            alphas = mode_abs / mode_abs.max()
+
+            axes[0, c].imshow(
+                mode_abs, cmap="inferno", vmin=0, vmax=modes_max, extent=extent
+            )
+            axes[1, c].imshow(
+                mode_ang,
+                cmap="hsv",
+                vmin=-np.pi,
+                vmax=np.pi,
+                interpolation="None",
+                extent=extent,
+            )
+            axes[2, c].imshow(
+                mode_ang,
+                alpha=alphas,
+                cmap="hsv",
+                vmin=-np.pi,
+                vmax=np.pi,
+                interpolation="None",
+                extent=extent,
+            )
+        axes[0, 0].set_ylabel(r"$y$ (nm)")
+        axes[1, 0].set_ylabel(r"$y$ (nm)")
+        axes[2, 0].set_ylabel(r"$y$ (nm)")
+        axes[2, 0].set_xlabel(r"$x$ (nm)")
+        axes[2, 1].set_xlabel(r"$x$ (nm)")
+        axes[2, 2].set_xlabel(r"$x$ (nm)")
+        cb = fig.colorbar(
+            axes[0, 2].get_images()[0], cax=axes[0, 2].inset_axes((1.05, 0.0, 0.05, 1))
+        )
+        cb.ax.set_ylabel("Amplitude")
+        for i in [1, 2]:
+            cb = fig.colorbar(
+                axes[1, 2].get_images()[0],
+                cax=axes[i, 2].inset_axes((1.05, 0.0, 0.05, 1)),
+                ticks=[-3, 0, 3],
+            )
+            cb.set_ticklabels([r"-$\pi$", 0, r"$\pi$"])
+            cb.ax.set_ylabel("Phase")
+        fi = (np.abs(self[f"modes/{dset}/freqs"][:] - f)).argmin()
+        ff = self[f"modes/{dset}/freqs"][:][fi]
+        fig.suptitle(f"Simulation: {self.name}/{dset}, Frequency: {ff:.2f} GHz")
         fig.tight_layout()

@@ -43,13 +43,24 @@ class Make:
     def _get_paths(self, load_path: str) -> Tuple[str, str]:
         """Cleans the input string and return the path for .out folder and .mx3 file"""
         load_path = load_path.replace(".mx3", "").replace(".out", "").replace(".h5", "")
-        out_path = f"{load_path}.out"
-        mx3_path = f"{load_path}.mx3"
-        logs_path = f"{out_path}/log.txt"
-        if not os.path.exists(out_path):
-            raise NameError(f"{out_path} not found")
-        if not os.path.exists(mx3_path):
-            raise NameError(f"{mx3_path} not found")
+
+        if os.path.exists(f"{load_path}.out"):
+            out_path = f"{load_path}.out"
+        else:
+            raise NameError(f"{load_path}.out not found")
+
+        if os.path.exists(f"{load_path}.mx3"):
+            mx3_path = f"{load_path}.mx3"
+        else:
+            raise NameError(f"{load_path}.mx3 not found")
+
+        if os.path.exists(f"{out_path}/slurm.logs"):
+            logs_path = f"{out_path}/slurm.logs"
+        elif os.path.exists(f"{out_path}/log.txt"):
+            logs_path = f"{out_path}/log.txt"
+        else:
+            raise NameError(f"{out_path}/log.txt  not found")
+
         return out_path, mx3_path, logs_path
 
     def add_snapshots(self, out_path: str):
