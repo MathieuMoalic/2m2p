@@ -1,6 +1,7 @@
 from typing import Optional, Union, Tuple
 import os
 import multiprocessing as mp
+import colorsys
 
 import numpy as np
 import dask.array as da
@@ -9,11 +10,9 @@ import matplotlib.pyplot as plt
 from tqdm import tqdm
 import cmocean  # pylint: disable=unused-import
 
-# pylint: disable=import-error
-from colorconversion.arrays import hsl2rgb  # type: ignore
-
 from ._make import Make
 from ._ovf import save_ovf, load_ovf
+from ._utils import hsl2rgb
 
 
 class Llyr:
@@ -36,8 +35,10 @@ class Llyr:
         tmax: Optional[int] = None,
         override: bool = False,
         delete_out: bool = False,
+        delete_mx3: bool = False,
+        skip_ovf: bool = False,
     ):
-        Make(self, load_path, tmax, override, delete_out)
+        Make(self, load_path, tmax, override, delete_out, delete_mx3, skip_ovf)
         return self
 
     def __repr__(self) -> str:
@@ -368,7 +369,7 @@ class Llyr:
             self.add_dset(arr, f"{name}/arr", override)
             self.add_dset(freqs, f"{name}/freqs", override)
 
-    def fft_tb(self, dset: str, tmax: int = None, normalize: bool = True):
+    def fft_tb(self, dset: str, tmax: int = None, normalize: bool = False):
         y = self[f"table/{dset}"][slice(tmax)]
         x = np.fft.rfftfreq(y.shape[0], self.dt) * 1e-9
         y -= y[0]
@@ -379,6 +380,36 @@ class Llyr:
         if normalize:
             y /= y.max()
         return x, y
+
+    def compute_sk_number(self, dset: str, z: int = 0, t: int = 0):
+        spin_grid = self[dset][t, z, :, :, :]
+        spin_pad = np.pad(
+            spin_grid, ((1, 1), (1, 1), (0, 0)), mode="constant", constant_values=0.0
+        )
+        sk_number = (
+            np.cross(
+                spin_pad[2:, 1:-1, :],  # s(i+1,j)
+                spin_pad[1:-1, 2:, :],  # s(i,j+1)
+                axis=2,
+            )
+            + np.cross(
+                spin_pad[:-2, 1:-1, :],  # s(i-1,j)
+                spin_pad[1:-1, :-2, :],  # s(i,j-1)
+                axis=2,
+            )
+            - np.cross(
+                spin_pad[:-2, 1:-1, :],  # s(i-1,j)
+                spin_pad[1:-1, 2:, :],  # s(i,j+1)
+                axis=2,
+            )
+            - np.cross(
+                spin_pad[2:, 1:-1, :],  # s(i+1,j)
+                spin_pad[1:-1, :-2, :],  # s(i,j-1)
+                axis=2,
+            )
+        )
+        sk_number = -1 * np.einsum("ijk,ijk->ij", spin_grid, sk_number) / (16 * np.pi)
+        return np.sum(sk_number.flatten())
 
     # plotting
 
@@ -500,29 +531,55 @@ class Llyr:
         L, H = np.mgrid[0 : 1 : arr.shape[1] * 1j, 0:1:20j]
         S = np.ones_like(L)
         rgb = hsl2rgb(np.dstack((H, S, L)))
-        cb = ax.inset_axes((1.05, 0.0, 0.05, 1))
-        cb.imshow(rgb, aspect="auto")
-        cb.set_yticks([0, arr.shape[1] / 2, arr.shape[1]])
-        cb.set_yticklabels([-1, 0, 1])
-        cb.set_xticks([])
-        cb.tick_params(
-            axis="y",
-            which="both",
-            reset=True,
-            labelright=True,
-            right=True,
-            left=False,
-            labelleft=False,
-        )
-        cb.text(
-            1.9,
-            0.5,
-            "$m_z$",
-            rotation=-90,
-            verticalalignment="center",
-            transform=cb.transAxes,
-        )
         fig.tight_layout()
+        self.add_radial_phase_colormap(ax)
+        return ax
+
+    def add_radial_phase_colormap(self, ax, rec=None):
+        def func1(hsl):
+            return np.array(colorsys.hls_to_rgb(hsl[0] / (2 * np.pi), hsl[1], hsl[2]))
+
+        if rec is None:
+            rec = [0.85, 0.85, 0.15, 0.15]
+        cax = plt.axes(rec, polar=True)
+        p1, p2 = ax.get_position(), cax.get_position()
+        cax.set_position([p1.x1 - p2.width, p1.y1 - p2.height, p2.width, p2.height])
+
+        theta = np.linspace(0, 2 * np.pi, 360)
+        r = np.arange(0, 100, 1)
+        hls = np.ones((theta.size * r.size, 3))
+
+        hls[:, 0] = np.tile(theta, r.size)
+        white_pad = 20
+        black_pad = 10
+        hls[: white_pad * theta.size, 1] = 1
+        hls[-black_pad * theta.size :, 1] = 0
+        hls[white_pad * theta.size : -black_pad * theta.size, 1] = np.repeat(
+            np.linspace(1, 0, r.size - white_pad - black_pad), theta.size
+        )
+        rgb = np.apply_along_axis(func1, 1, hls)
+        cax.pcolormesh(
+            theta,
+            r,
+            np.zeros((r.size, theta.size)),
+            color=rgb,
+            shading="nearest",
+        )
+        cax.spines["polar"].set_visible(False)
+        cax.set(yticks=[], xticks=[])
+        up_symbol = dict(x=0.5, y=0.5, name=r"$\bigotimes$")
+        down_symbol = dict(x=0.1, y=0.5, name=r"$\bigodot$")
+        for s in [up_symbol, down_symbol]:
+            cax.text(
+                s["x"],
+                s["y"],
+                s["name"],
+                color="#3b5bff",
+                horizontalalignment="center",
+                verticalalignment="center",
+                fontsize=5,
+                transform=cax.transAxes,
+            )
 
     def mode(self, dset: str, f: float, c: int):
         if f"modes/{dset}/arr" not in self.dsets:
@@ -538,7 +595,8 @@ class Llyr:
         arr = np.array(pool.map(np.fft.rfft, arr), dtype=np.complex64)
         pool.close()
         pool.join()
-        arr = arr.T.reshape(int(s[0] / 2 + 1), s[1], s[2], s[3])
+        arr = arr.T
+        arr = arr.reshape((int(s[0] / 2 + 1), s[1], s[2], s[3]))
         self.add_dset(arr, f"modes/{dset}/arr", override=override)
         freqs = np.fft.rfftfreq(s[0], self.dt) * 1e-9
         self.add_dset(freqs, f"modes/{dset}/freqs", override=override)
@@ -599,6 +657,9 @@ class Llyr:
                 interpolation="None",
                 extent=extent,
             )
+        axes[0, 0].set_title(r"$m_x$")
+        axes[0, 1].set_title(r"$m_y$")
+        axes[0, 2].set_title(r"$m_z$")
         axes[0, 0].set_ylabel(r"$y$ (nm)")
         axes[1, 0].set_ylabel(r"$y$ (nm)")
         axes[2, 0].set_ylabel(r"$y$ (nm)")
@@ -621,3 +682,15 @@ class Llyr:
         ff = self[f"modes/{dset}/freqs"][:][fi]
         fig.suptitle(f"Simulation: {self.name}/{dset}, Frequency: {ff:.2f} GHz")
         fig.tight_layout()
+        return
+
+    def plot_fft_tb(self, tmin=0, tmax=-1):
+        fig, (ax0, ax1, ax2) = plt.subplots(3, 1, sharex=True)
+        x, y = self.fft_tb("mx", tmax=tmax)
+        ax0.plot(x[tmin:], y[tmin:])
+        x, y = self.fft_tb("my", tmax=tmax)
+        ax1.plot(x[tmin:], y[tmin:])
+        x, y = self.fft_tb("mz", tmax=tmax)
+        ax2.plot(x[tmin:], y[tmin:])
+        fig.tight_layout()
+        return

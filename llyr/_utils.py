@@ -44,3 +44,19 @@ def get_shape(arr: np.ndarray) -> dict:
         return
 
     return {"xi_max": xi_max, "x_max": x_max, "yi_max": yi_max, "y_max": y_max}
+
+
+def hsl2rgb(hsl):
+    h = hsl[..., 0] * 360
+    s = hsl[..., 1]
+    l = hsl[..., 2]
+
+    rgb = np.zeros_like(hsl)
+    for i, n in enumerate([0, 8, 4]):
+        k = (n + h / 30) % 12
+        a = s * np.minimum(l, 1 - l)
+        k = np.minimum(k - 3, 9 - k)
+        k = np.clip(k, -1, 1)
+        rgb[..., i] = l - a * k
+    rgb = np.clip(rgb, 0, 1)
+    return rgb
