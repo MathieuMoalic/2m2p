@@ -16,12 +16,12 @@ class Make:
     def __init__(
         self,
         llyr,
-        load_path=None,
-        tmax=None,
-        override=False,
-        delete_out=False,
-        delete_mx3=False,
-        skip_ovf=False,
+        load_path,
+        tmax,
+        override,
+        delete_out,
+        delete_mx3,
+        skip_ovf,
     ):
         if load_path is None:
             load_path = llyr.path.replace(".h5", ".out")

@@ -1,8 +1,11 @@
 import os
 import configparser
 import itertools
+import glob
 
 import numpy as np
+from matplotlib import pyplot as plt
+import matplotlib as mpl
 from appdirs import user_config_dir
 
 
@@ -60,3 +63,75 @@ def hsl2rgb(hsl):
         rgb[..., i] = l - a * k
     rgb = np.clip(rgb, 0, 1)
     return rgb
+
+
+def clean_glob_names(ps):
+    ps = sorted([x.split("/")[-1].split(".")[0] for x in ps])
+    pre_sub = ""
+    for i in range(20):
+        q = [pre_sub + ps[0][i] == p[: i + 1] for p in ps]
+        if not all(q):
+            break
+        pre_sub += ps[0][i]
+    post_sub = ""
+    for i in range(-1, -20, -1):
+        q = [ps[0][i] + post_sub == p[i:] for p in ps]
+        if not all(q):
+            break
+        post_sub = ps[0][i] + post_sub
+    ps = [p.replace(pre_sub, "").replace(post_sub, "") for p in ps]
+    return pre_sub, post_sub, ps
+
+
+def cspectra_b(Llyr):
+    def cspectra(ps, norm=None):
+        cmaps = []
+        for a, b, c in zip((1, 0, 0), (0, 1, 0), (0, 0, 1)):
+            N = 256
+            vals = np.ones((N, 4))
+            vals[:, 0] = np.linspace(1, a, N)
+            vals[:, 1] = np.linspace(1, b, N)
+            vals[:, 2] = np.linspace(1, c, N)
+            vals[:, 3] = np.linspace(0, 1, N)
+            cmaps.append(mpl.colors.ListedColormap(vals))
+        paths = glob.glob(f"{ps}/*.h5")[:17]
+        fig, ax = plt.subplots(1, 1, figsize=(5, 5), sharex=True, sharey=True)
+        for c, cmap in zip(["mx", "mz"], [cmaps[0], cmaps[2]]):
+            names = []
+            arr = []
+            for p in paths:
+                m = Llyr(p)
+                names.append(m.name)
+                x, y = m.fft_tb(c, tmax=None, normalize=True)
+                x, y = x[5:], y[5:]
+                print(m.name, y.shape)
+                arr.append(y)
+            arr = np.array(arr).T
+            # norm=mpl.colors.SymLogNorm(linthresh=0.2)
+
+            ax.imshow(
+                arr,
+                aspect="auto",
+                origin="lower",
+                interpolation="nearest",
+                extent=[0, arr.shape[1] * 2, x.min(), x.max()],
+                cmap=cmap,
+                norm=norm,
+            )
+        ax.legend(
+            handles=[
+                mpl.patches.Patch(color="red", label="mx"),
+                mpl.patches.Patch(color="blue", label="mz"),
+            ],
+            fontsize=5,
+        )
+        _, _, ps = clean_glob_names(paths)
+        ax.set_ylim(0, 15)
+        ax.set_xticks(np.arange(1, arr.shape[1] * 2, 2))
+        ax.set_xticklabels(ps)
+        ax.set_xlabel("Ring Width (nm)")
+        ax.set_ylabel("Frequency (GHz)")
+        fig.tight_layout(h_pad=0.4, w_pad=0.2)
+        return fig, ax
+
+    return cspectra
