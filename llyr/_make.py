@@ -1,8 +1,9 @@
-from typing import Tuple, Optional
+from typing import Optional
 import os
 import re
 import glob
 import shutil
+import time
 
 import numpy as np
 import imageio
@@ -28,72 +29,94 @@ class Make:
         self.ts = 0
         self.override = override
         llyr.create_h5(override)
-        out_path, mx3_path, logs_path = self._get_paths(load_path)
-
-        self.add_mx3(mx3_path)
-        self.add_logs(logs_path)
-        self.add_snapshots(out_path)
-        if not skip_ovf:
-            dset_prefixes = self._get_dset_prefixes(out_path)
-            for prefix, name in dset_prefixes.items():
-                self.make_dset(out_path, prefix, name=name, tmax=tmax)
-        self.add_table(f"{out_path}/table.txt")
         self.llyr.add_attr("version", "0.1.5")
+        self.add_paths(load_path)
+        self.add_times()
+        self.add_step_size()
+        self.add_mx3()
+        self.add_snapshots()
+        self.add_logs()
+        self.add_table()
+        if not skip_ovf:
+            self.add_dset_prefixes()
+            for prefix, name in self.dset_prefixes.items():
+                self.make_dset(prefix, name=name, tmax=tmax)
         if delete_out:
-            shutil.rmtree(out_path)
-        if os.path.isfile(mx3_path) and delete_mx3:
-            os.remove(mx3_path)
+            shutil.rmtree(self.out_path)
+        if self.mx3_path != "" and delete_mx3:
+            os.remove(self.mx3_path)
 
-    def _get_paths(self, load_path: str) -> Tuple[str, str]:
+    def add_paths(self, load_path: str):
         """Cleans the input string and return the path for .out folder and .mx3 file"""
         load_path = load_path.replace(".mx3", "").replace(".out", "").replace(".h5", "")
 
         if os.path.exists(f"{load_path}.out"):
-            out_path = f"{load_path}.out"
+            self.out_path = f"{load_path}.out"
         else:
             raise NameError(f"{load_path}.out not found")
 
         if os.path.exists(f"{load_path}.mx3"):
-            mx3_path = f"{load_path}.mx3"
+            self.mx3_path = f"{load_path}.mx3"
         else:
-            raise NameError(f"{load_path}.mx3 not found")
+            self.mx3_path = ""
 
-        if os.path.exists(f"{out_path}/slurm.logs"):
-            logs_path = f"{out_path}/slurm.logs"
-        elif os.path.exists(f"{out_path}/log.txt"):
-            logs_path = f"{out_path}/log.txt"
+        if os.path.exists(f"{self.out_path}/slurm.logs"):
+            self.logs_path = f"{self.out_path}/slurm.logs"
+        elif os.path.exists(f"{self.out_path}/log.txt"):
+            self.logs_path = f"{self.out_path}/log.txt"
         else:
-            raise NameError(f"{out_path}/log.txt  not found")
+            self.logs_path = ""
 
-        return out_path, mx3_path, logs_path
+    def add_times(self):
+        self.llyr.add_attr(
+            "start_time",
+            time.asctime(time.localtime(os.stat(f"{self.out_path}/gui").st_mtime)),
+        )
+        self.llyr.add_attr(
+            "stop_time",
+            time.asctime(time.localtime(os.stat(f"{self.out_path}/log.txt").st_mtime)),
+        )
 
-    def add_snapshots(self, out_path: str):
-        snapshots_paths = glob.glob(f"{out_path}/*.png") + glob.glob(
-            f"{out_path}/*.jpg"
+    def add_step_size(self):
+        # load one file to initialize the h5 dataset with the correct shape
+        ovf_paths = glob.glob(f"{self.out_path}/*.ovf")
+        if len(ovf_paths) == 0:
+            return
+        else:
+            ovf_path = ovf_paths[0]
+        ovf_parms = get_ovf_parms(ovf_path)
+        for key in ["dx", "dy", "dz"]:
+            if key not in self.llyr.attrs:
+                self.llyr.add_attr(key, ovf_parms[key])
+
+    def add_mx3(self):
+        """Adds the mx3 file to the f.attrs"""
+        if self.mx3_path != "":
+            with open(self.mx3_path, "r") as mx3:
+                self.llyr.add_attr("mx3", mx3.read())
+        else:
+            print("mx3 file not found")
+
+    def add_snapshots(self):
+        snapshots_paths = glob.glob(f"{self.out_path}/*.png") + glob.glob(
+            f"{self.out_path}/*.jpg"
         )
         for p in snapshots_paths:
             snapshot = imageio.imread(p)
             name = p.split("/")[-1].replace(".png", "")
             self.llyr.add_dset(snapshot, f"snapshots/{name}", override=self.override)
 
-    def add_mx3(self, mx3_path: str) -> None:
-        """Adds the mx3 file to the f.attrs"""
-        if os.path.isfile(mx3_path):
-            with open(mx3_path, "r") as mx3:
-                self.llyr.add_attr("mx3", mx3.read())
-        else:
-            print(f"{mx3_path} not found")
-
-    def add_logs(self, logs_path: str) -> None:
+    def add_logs(self):
         """Adds the logs file to the f.attrs"""
-        if os.path.isfile(logs_path):
-            with open(logs_path, "r") as logs:
+        if os.path.isfile(self.logs_path):
+            with open(self.logs_path, "r") as logs:
                 self.llyr.add_attr("logs", logs.read())
         else:
-            print(f"{logs_path} not found")
+            print("logs not found")
 
-    def add_table(self, table_path: str, dset_name: str = "table") -> None:
+    def add_table(self, dset_name: str = "table"):
         """Adds a the mumax table.txt file as a dataset"""
+        table_path = f"{self.out_path}/table.txt"
         if os.path.isfile(table_path):
             with open(table_path, "r") as table:
                 header = table.readline()
@@ -109,9 +132,9 @@ class Make:
             for i, h in enumerate(clean_header):
                 self.llyr.add_dset(data[i], f"{dset_name}/{h}", override=self.override)
 
-    def _get_dset_prefixes(self, out_path: str) -> dict:
+    def add_dset_prefixes(self) -> dict:
         """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""
-        paths = glob.glob(f"{out_path}/*.ovf")
+        paths = glob.glob(f"{self.out_path}/*.ovf")
         prefixes = list(
             {re.sub(r"_?[\d.]*.ovf", "", path.split("/")[-1]) for path in paths}
         )
@@ -123,26 +146,20 @@ class Make:
                 if re.findall(pattern, prefix.lower()):
                     names[prefix] = name
                     break
-        return names
+        self.dset_prefixes = names
 
     def make_dset(
         self,
-        out_path: str,
         prefix: str,
         name: str,
         tmax: Optional[int] = None,
-    ) -> None:
+    ):
         """Creates a dataset from an input .out folder path and a prefix (i.e. "m00")"""
-        ovf_paths = sorted(glob.glob(f"{out_path}/{prefix}*.ovf"))[:tmax]
+        ovf_paths = sorted(glob.glob(f"{self.out_path}/{prefix}*.ovf"))[:tmax]
         # this is to calculate dt
         if self.ts < len(ovf_paths):
             self.ts = len(ovf_paths)
-        # load one file to initialize the h5 dataset with the correct shape
-        ovf_parms = get_ovf_parms(ovf_paths[0])
-        for key in ["dx", "dy", "dz"]:
-            if key not in self.llyr.attrs:
-                self.llyr.add_attr(key, ovf_parms[key])
 
+        ovf_parms = get_ovf_parms(ovf_paths[0])
         dset_shape = (len(ovf_paths),) + ovf_parms["shape"]
-        # name = self._get_dset_prefixes(prefix)
         self.llyr.load_dset(name, dset_shape, ovf_paths)
