@@ -9,6 +9,7 @@ import h5py
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 import cmocean  # pylint: disable=unused-import
+import peakutils
 
 from ._make import Make
 from ._ovf import save_ovf, load_ovf
@@ -369,8 +370,10 @@ class Llyr:
             self.add_dset(arr, f"{name}/arr", override)
             self.add_dset(freqs, f"{name}/freqs", override)
 
-    def fft_tb(self, dset: str, tmax: int = None, normalize: bool = False):
-        y = self[f"table/{dset}"][slice(tmax)]
+    def fft_tb(
+        self, dset: str, tmax: int = None, tmin: int = None, normalize: bool = False
+    ):
+        y = self[f"table/{dset}"][slice(tmin, tmax)]
         x = np.fft.rfftfreq(y.shape[0], self.dt) * 1e-9
         y -= y[0]
         y -= np.average(y)
@@ -590,38 +593,67 @@ class Llyr:
     def calculate_modes(self, dset: str, z: int = 0, override=False):
         arr = self[dset][:, z, :, :, :]
         s = arr.shape
-        pool = mp.Pool(processes=int(mp.cpu_count() - 1))
         arr = arr.reshape(s[0], np.prod(s[1:])).T
-        arr = np.array(pool.map(np.fft.rfft, arr), dtype=np.complex64)
-        pool.close()
-        pool.join()
-        arr = arr.T
-        arr = arr.reshape((int(s[0] / 2 + 1), s[1], s[2], s[3]))
+        arr = np.fft.rfft(arr)
+        arr = arr.T.reshape((int(s[0] / 2 + 1), s[1], s[2], s[3]))
+
         self.add_dset(arr, f"modes/{dset}/arr", override=override)
         freqs = np.fft.rfftfreq(s[0], self.dt) * 1e-9
         self.add_dset(freqs, f"modes/{dset}/freqs", override=override)
 
-    def plot_mode(self, dset: str, f: float, c: int):
+    def calculate_modes2(self, dset: str, z: int = 0, override=False):
+        arr = self[dset][:, z, :, :, :]
+        arr = np.sqrt(arr[..., 0] ** 2 + arr[..., 1] ** 2 + arr[..., 2] ** 2)
+        s = arr.shape
+        arr = arr.reshape(s[0], np.prod(s[1:])).T
+        arr = np.fft.rfft(arr)
+        arr = arr.T.reshape((int(s[0] / 2 + 1), s[1], s[2]))
+
+        self.add_dset(arr, f"modes/{dset}2/arr", override=override)
+        freqs = np.fft.rfftfreq(s[0], self.dt) * 1e-9
+        self.add_dset(freqs, f"modes/{dset}2/freqs", override=override)
+
+    def plot_mode(self, dset: str, f: float, c: int, axes=None):
         mode = self.mode(dset, f, c)
         max_amp = np.abs(mode).max()
-        fi = (np.abs(self[f"modes/{dset}/freqs"][:] - f)).argmin()
-        ff = self[f"modes/{dset}/freqs"][:][fi]
 
-        fig, (ax0, ax1, ax2) = plt.subplots(1, 3)
-
+        if axes is None:
+            fig, axes = plt.subplots(1, 3, sharey=True)
+        (ax0, ax1, ax2) = axes
+        fig = ax0.figure
         ax0.imshow(np.abs(mode), cmap="inferno")
-        ax0.set_title(f"Amps = {max_amp:.3f}")
-        fig.colorbar(ax0.get_images()[0], ax=ax0)
 
         ax1.imshow(
             np.angle(mode), cmap="hsv", vmin=-np.pi, vmax=np.pi, interpolation="None"
         )
-        fig.colorbar(ax1.get_images()[0], ax=ax1)
-        ax1.set_title(f"f = {ff:.3f} GHz")
 
-        alphas = np.abs(mode) / np.abs(mode).max()
+        alphas = np.abs(mode) / max_amp
         ax2.imshow(np.angle(mode), alpha=alphas, cmap="hsv", vmin=-np.pi, vmax=np.pi)
-        fig.colorbar(ax2.get_images()[0], ax=ax2)
+
+        cb = fig.colorbar(ax0.get_images()[0], cax=ax0.inset_axes((1.05, 0.0, 0.05, 1)))
+        cb.ax.set_ylabel("Amplitude", rotation=-90, labelpad=8)
+
+        cb = fig.colorbar(
+            ax1.get_images()[0],
+            cax=ax1.inset_axes((1.05, 0.0, 0.05, 1)),
+            ticks=[-3, 0, 3],
+        )
+        cb.set_ticklabels([r"-$\pi$", 0, r"$\pi$"])
+        cb.ax.set_ylabel("Phase", rotation=-90)
+        cb = fig.colorbar(
+            ax1.get_images()[0],
+            cax=ax2.inset_axes((1.05, 0.0, 0.05, 1)),
+            ticks=[-3, 0, 3],
+        )
+        cb.set_ticklabels([r"-$\pi$", 0, r"$\pi$"])
+        cb.ax.set_ylabel("Phase", rotation=-90)
+
+        # ax0.set_title(f"Comp = {c}")
+        # ax1.set_title(f"Amps = {max_amp:.3f}")
+        # ax2.set_title(f"f = {ff:.3f} GHz")
+
+        # fig.suptitle(self.name, pad=0)
+        # fig.tight_layout(h_pad=0, w_pad=0)
 
     def plot_modes(self, dset: str, f: float):
         mode1 = self.mode(dset, f, 0)
@@ -682,15 +714,84 @@ class Llyr:
         ff = self[f"modes/{dset}/freqs"][:][fi]
         fig.suptitle(f"Simulation: {self.name}/{dset}, Frequency: {ff:.2f} GHz")
         fig.tight_layout()
-        return
 
-    def plot_fft_tb(self, tmin=0, tmax=-1):
-        fig, (ax0, ax1, ax2) = plt.subplots(3, 1, sharex=True)
-        x, y = self.fft_tb("mx", tmax=tmax)
-        ax0.plot(x[tmin:], y[tmin:])
-        x, y = self.fft_tb("my", tmax=tmax)
-        ax1.plot(x[tmin:], y[tmin:])
-        x, y = self.fft_tb("mz", tmax=tmax)
-        ax2.plot(x[tmin:], y[tmin:])
+    def plot_modes2(self, dset: str, f: float):
+        fi = (np.abs(self[f"modes/{dset}/freqs"][:] - f)).argmin()
+        ff = self[f"modes/{dset}/freqs"][:][fi]
+        mode = self[f"modes/{dset}/arr"][fi, :, :]
+        extent = [0, mode.shape[0] * self.dy * 1e9, 0, mode.shape[1] * self.dx * 1e9]
+
+        fig, axes = plt.subplots(1, 3, sharex=True, sharey=True, figsize=(7, 2))
+        mode_abs = np.abs(mode)
+        mode_ang = np.angle(mode)
+        alphas = mode_abs / mode_abs.max()
+
+        axes[0].imshow(
+            mode_abs, cmap="inferno", vmin=0, vmax=mode_abs.max(), extent=extent
+        )
+        axes[1].imshow(
+            mode_ang,
+            cmap="hsv",
+            vmin=-np.pi,
+            vmax=np.pi,
+            interpolation="None",
+            extent=extent,
+        )
+        axes[2].imshow(
+            mode_ang,
+            alpha=alphas,
+            cmap="hsv",
+            vmin=-np.pi,
+            vmax=np.pi,
+            interpolation="None",
+            extent=extent,
+        )
+        axes[0].set_ylabel(r"$y$ (nm)")
+        axes[0].set_xlabel(r"$x$ (nm)")
+        axes[1].set_xlabel(r"$x$ (nm)")
+        axes[2].set_xlabel(r"$x$ (nm)")
+        cb = fig.colorbar(
+            axes[0].get_images()[0], cax=axes[0].inset_axes((1.05, 0.0, 0.05, 1))
+        )
+        cb.ax.set_ylabel("Amplitude")
+        for i in [1, 2]:
+            cb = fig.colorbar(
+                axes[1].get_images()[0],
+                cax=axes[i].inset_axes((1.05, 0.0, 0.05, 1)),
+                ticks=[-3, 0, 3],
+            )
+            cb.set_ticklabels([r"-$\pi$", 0, r"$\pi$"])
+            cb.ax.set_ylabel("Phase")
+        fig.suptitle(f"Simulation: {self.name}, Frequency: {ff:.2f} GHz, sum of comps")
         fig.tight_layout()
-        return
+
+    def plot_fft_tb(
+        self, tmin=0, tmax=-1, fft_tmin=0, fft_tmax=-1, thres=0.15, axes=None
+    ):
+        if axes is None:
+            _, axes = plt.subplots(3, 1, sharex=True)
+        comps = ["mx", "my", "mz"]
+        fss = []
+        for i in range(3):
+            c, ax = comps[i], axes[i]
+            x, y = self.fft_tb(c, tmax=fft_tmax, tmin=fft_tmin)
+            ax.plot(x[tmin:tmax], y[tmin:tmax])
+            list_peaks = peakutils.indexes(y, thres=thres, min_dist=4)
+            fs = [x[i] for i in list_peaks]
+            fss.append(fs)
+            for f in fs:
+                ax.axvline(f, ls="--", c="gray")
+                ax.text(
+                    f,
+                    y[tmin:].max() * 1.15,
+                    f"{f:.2f}",
+                    fontsize=5,
+                    rotation=45,
+                    ha="left",
+                    va="center",
+                )
+            ax.spines["top"].set_visible(False)
+            ax.spines["right"].set_visible(False)
+
+        # fig.tight_layout()
+        return axes, fss
