@@ -104,7 +104,6 @@ def cspectra_b(Llyr):
                 names.append(m.name)
                 x, y = m.fft_tb(c, tmax=None, normalize=True)
                 x, y = x[5:], y[5:]
-                print(m.name, y.shape)
                 arr.append(y)
             arr = np.array(arr).T
             # norm=mpl.colors.SymLogNorm(linthresh=0.2)
