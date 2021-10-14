@@ -8,7 +8,7 @@ import time
 import numpy as np
 import imageio
 
-from ._utils import get_config
+# from ._utils import get_config
 from ._ovf import get_ovf_parms
 
 
@@ -68,14 +68,18 @@ class Make:
             self.logs_path = ""
 
     def add_times(self):
-        self.llyr.add_attr(
-            "start_time",
-            time.asctime(time.localtime(os.stat(f"{self.out_path}/gui").st_mtime)),
-        )
-        self.llyr.add_attr(
-            "stop_time",
-            time.asctime(time.localtime(os.stat(f"{self.out_path}/log.txt").st_mtime)),
-        )
+        start_file_path = f"{self.out_path}/gui"
+        stop_file_path = f"{self.out_path}/log.txt"
+        if os.path.exists(start_file_path):
+            self.llyr.add_attr(
+                "start_time",
+                time.asctime(time.localtime(os.stat(start_file_path).st_mtime)),
+            )
+        if os.path.exists(stop_file_path):
+            self.llyr.add_attr(
+                "stop_time",
+                time.asctime(time.localtime(os.stat(stop_file_path).st_mtime)),
+            )
 
     def add_step_size(self):
         # load one file to initialize the h5 dataset with the correct shape
@@ -139,7 +143,8 @@ class Make:
             {re.sub(r"_?[\d.]*.ovf", "", path.split("/")[-1]) for path in paths}
         )
         names = {}
-        prefix_to_name = get_config()
+        # prefix_to_name = get_config()
+        prefix_to_name = dict()
         for prefix in prefixes:
             names[prefix] = prefix
             for pattern, name in prefix_to_name.items():
