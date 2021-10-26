@@ -10,9 +10,7 @@ def save_ovf(path: str, arr: np.ndarray, dx: float, dy: float, dz: float) -> Non
         s += "\n"
         f.write(s.encode("ASCII"))
 
-    out = arr.astype("<f4")
-    out = out.tobytes()
-
+    out = arr.astype("<f4").tobytes()
     xnodes, ynodes, znodes = arr.shape[2], arr.shape[1], arr.shape[0]
     xmin, ymin, zmin = 0, 0, 0
     xmax, ymax, zmax = xnodes * dx, ynodes * dy, znodes * dz
@@ -76,11 +74,11 @@ def get_ovf_parms(ovf_path: str) -> dict:
                 dy = float(line.split(" ")[-1])
             if "zstepsize" in line:
                 dz = float(line.split(" ")[-1])
-            # if "Desc: Total simulation time:" in line:
-            #     dt = float(line.split("  ")[-2])
+            if "Desc: Total simulation time:" in line:
+                t = float(line.split("  ")[-2])
             if "End: Header" in line:
                 break
-    parms = {"shape": (z, y, x, c), "dx": dx, "dy": dy, "dz": dz}
+    parms = {"shape": (z, y, x, c), "dx": dx, "dy": dy, "dz": dz, "t": t}
     return parms
 
 

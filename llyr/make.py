@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Optional, Dict
 import os
 import re
 import glob
@@ -9,27 +9,36 @@ import numpy as np
 import imageio
 
 # from ._utils import get_config
-from ._ovf import get_ovf_parms
+from .ovf import get_ovf_parms
 
 
 class Make:
-    def __init__(
+    def __init__(self, llyr):
+        self.llyr = llyr
+        self.skip_ovf: bool
+        self.ts: int
+        self.override: bool
+        self.out_path: str
+        self.mx3_path: str
+        self.logs_path: str
+        self.dset_prefixes: dict
+
+    def make(
         self,
-        llyr,
-        load_path,
-        tmax,
-        override,
-        delete_out,
-        delete_mx3,
-        skip_ovf,
+        load_path: Optional[str] = None,
+        tmax: Optional[int] = None,
+        override: bool = False,
+        delete_out: bool = False,
+        delete_mx3: bool = False,
+        skip_ovf: bool = False,
     ):
         if load_path is None:
-            load_path = llyr.path.replace(".h5", ".out")
-        self.llyr = llyr
+            load_path = self.llyr.path.replace(".h5", ".out")
+        self.skip_ovf = skip_ovf
         self.ts = 0
         self.override = override
-        llyr.create_h5(override)
-        self.llyr.add_attr("version", "0.1.5")
+        self.llyr.h5.create_h5(override)
+        self.llyr.h5.add_attr("version", "0.1.5")
         self.add_paths(load_path)
         self.add_times()
         self.add_step_size()
@@ -71,12 +80,12 @@ class Make:
         start_file_path = f"{self.out_path}/gui"
         stop_file_path = f"{self.out_path}/log.txt"
         if os.path.exists(start_file_path):
-            self.llyr.add_attr(
+            self.llyr.h5.add_attr(
                 "start_time",
                 time.asctime(time.localtime(os.stat(start_file_path).st_mtime)),
             )
         if os.path.exists(stop_file_path):
-            self.llyr.add_attr(
+            self.llyr.h5.add_attr(
                 "stop_time",
                 time.asctime(time.localtime(os.stat(stop_file_path).st_mtime)),
             )
@@ -87,17 +96,17 @@ class Make:
         if len(ovf_paths) == 0:
             return
         else:
-            ovf_path = ovf_paths[0]
+            ovf_path = ovf_paths[-2]
         ovf_parms = get_ovf_parms(ovf_path)
         for key in ["dx", "dy", "dz"]:
             if key not in self.llyr.attrs:
-                self.llyr.add_attr(key, ovf_parms[key])
+                self.llyr.h5.add_attr(key, ovf_parms[key])
 
     def add_mx3(self):
         """Adds the mx3 file to the f.attrs"""
         if self.mx3_path != "":
             with open(self.mx3_path, "r") as mx3:
-                self.llyr.add_attr("mx3", mx3.read())
+                self.llyr.h5.add_attr("mx3", mx3.read())
         else:
             print("mx3 file not found")
 
@@ -108,13 +117,13 @@ class Make:
         for p in snapshots_paths:
             snapshot = imageio.imread(p)
             name = p.split("/")[-1].replace(".png", "")
-            self.llyr.add_dset(snapshot, f"snapshots/{name}", override=self.override)
+            self.llyr.h5.add_dset(snapshot, f"snapshots/{name}", override=self.override)
 
     def add_logs(self):
         """Adds the logs file to the f.attrs"""
         if os.path.isfile(self.logs_path):
             with open(self.logs_path, "r") as logs:
-                self.llyr.add_attr("logs", logs.read())
+                self.llyr.h5.add_attr("logs", logs.read())
         else:
             print("logs not found")
 
@@ -126,17 +135,20 @@ class Make:
                 header = table.readline()
                 data = np.loadtxt(table).T
             # Add dt
-            times = data[0]
-            dt = (times[-1] - times[0]) / (len(times) - 1)
-            self.llyr.add_attr("dt", dt)
+            if self.skip_ovf:
+                times = data[0]
+                dt = (times[-1] - times[0]) / (len(times) - 1)
+                self.llyr.h5.add_attr("dt", dt)
             # add table data
             clean_header = [
                 i.split(" (")[0].replace("# ", "") for i in header.split("\t")
             ]
             for i, h in enumerate(clean_header):
-                self.llyr.add_dset(data[i], f"{dset_name}/{h}", override=self.override)
+                self.llyr.h5.add_dset(
+                    data[i], f"{dset_name}/{h}", override=self.override
+                )
 
-    def add_dset_prefixes(self) -> dict:
+    def add_dset_prefixes(self):
         """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""
         paths = glob.glob(f"{self.out_path}/*.ovf")
         prefixes = list(
@@ -144,7 +156,7 @@ class Make:
         )
         names = {}
         # prefix_to_name = get_config()
-        prefix_to_name = dict()
+        prefix_to_name: Dict[str, str] = dict()
         for prefix in prefixes:
             names[prefix] = prefix
             for pattern, name in prefix_to_name.items():
@@ -165,6 +177,11 @@ class Make:
         if self.ts < len(ovf_paths):
             self.ts = len(ovf_paths)
 
-        ovf_parms = get_ovf_parms(ovf_paths[0])
+        ovf_parms = get_ovf_parms(ovf_paths[-1])
+        if "dt" not in self.llyr.dsets and len(ovf_paths) > 2:
+            t0 = get_ovf_parms(ovf_paths[0])["t"]
+            tn = ovf_parms["t"]
+            dt = (tn - t0) / len(ovf_paths)
+            self.llyr.h5.add_attr("dt", dt)
         dset_shape = (len(ovf_paths),) + ovf_parms["shape"]
-        self.llyr.load_dset(name, dset_shape, ovf_paths)
+        self.llyr.h5.load_dset(name, dset_shape, ovf_paths)
