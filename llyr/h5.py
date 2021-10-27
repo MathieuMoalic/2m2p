@@ -3,7 +3,7 @@ import os
 import multiprocessing as mp
 
 import numpy as np
-from tqdm import tqdm
+from tqdm.notebook import tqdm
 import h5py
 
 from .ovf import save_ovf, load_ovf

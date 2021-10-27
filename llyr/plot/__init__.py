@@ -5,6 +5,7 @@ from .modes import modes
 from .snapshot import snapshot
 from .snapshot_png import snapshot_png
 from .report import report
+from .sin_anim import sin_anim
 
 
 class Plot:
@@ -16,3 +17,4 @@ class Plot:
         self.snapshot = snapshot(llyr).plot
         self.snapshot_png = snapshot_png(llyr).plot
         self.report = report(llyr).plot
+        self.sin_anim = sin_anim(llyr).plot

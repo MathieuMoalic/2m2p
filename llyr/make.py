@@ -93,7 +93,7 @@ class Make:
     def add_step_size(self):
         # load one file to initialize the h5 dataset with the correct shape
         ovf_paths = glob.glob(f"{self.out_path}/*.ovf")
-        if len(ovf_paths) == 0:
+        if len(ovf_paths) <= 5:
             return
         else:
             ovf_path = ovf_paths[-2]

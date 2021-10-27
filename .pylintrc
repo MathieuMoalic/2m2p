@@ -66,6 +66,7 @@ confidence=
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable=
+        attribute-defined-outside-init,
         too-many-statements,
         too-few-public-methods,
         too-many-instance-attributes,

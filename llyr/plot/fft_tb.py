@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import peakutils
 
 from ..base import Base
 
@@ -7,37 +6,62 @@ from ..base import Base
 class fft_tb(Base):
     def plot(
         self,
-        tmin=0,
-        tmax=-1,
+        fmin=5,
+        fmax=25,
         fft_tmin=0,
         fft_tmax=-1,
         tstep=1,
-        thres=0.15,
+        thres=0.01,
         axes=None,
     ):
         if axes is None:
-            _, axes = plt.subplots(3, 1, sharex=True)
+            self.fig, self.axes = plt.subplots(1, 3, sharex=True, figsize=(15, 5))
         comps = ["mx", "my", "mz"]
-        fss = []
+        names = [r"$m_x$", r"$m_y$", r"$m_z$"]
         for i in range(3):
-            c, ax = comps[i], axes[i]
-            x, y = self.llyr.calc.fft_tb(c, tmax=fft_tmax, tmin=fft_tmin, tstep=tstep)
-            ax.plot(x[tmin:tmax], y[tmin:tmax])
-            list_peaks = peakutils.indexes(y, thres=thres, min_dist=4)
-            fs = [x[i] for i in list_peaks]
-            fss.append(fs)
-            for f in fs:
-                ax.axvline(f, ls="--", c="gray")
+            c, ax = comps[i], self.axes[i]
+            freqs, spec = self.llyr.calc.fft_tb(
+                c, tmax=fft_tmax, tmin=fft_tmin, tstep=tstep
+            )
+            freqs, spec = self.llyr.calc.fminmax(freqs, spec, fmin, fmax)
+            ax.plot(freqs, spec)
+            peaks = self.llyr.calc.peaks(freqs, spec, thres=thres)
+            for peak in peaks:
                 ax.text(
-                    f,
-                    y[tmin:].max() * 1.15,
-                    f"{f:.2f}",
-                    fontsize=5,
-                    rotation=45,
-                    ha="left",
-                    va="center",
+                    peak.freq,
+                    peak.amp + 0.03 * spec.max(),
+                    f"{peak.freq:.2f}",
+                    # fontsize=5,
+                    rotation=90,
+                    ha="center",
+                    va="bottom",
                 )
             ax.spines["top"].set_visible(False)
             ax.spines["right"].set_visible(False)
-            ax.set_xlim(5, 25)
+            ax.text(
+                0.9,
+                0.9,
+                names[i],
+                transform=ax.transAxes,
+                fontweight="bold",
+                ha="center",
+                va="center",
+                fontsize=16,
+            )
+        self.axes[0].text(
+            0,
+            1.1,
+            self.llyr.name,
+            transform=self.axes[0].transAxes,
+            fontweight="bold",
+            ha="left",
+            va="center",
+            fontsize=12,
+            bbox=dict(
+                boxstyle="square",
+                ec=(1.0, 0.8, 0.8),
+                fc=(1.0, 0.8, 0.8),
+            ),
+        )
+        self.fig.tight_layout()
         return self
