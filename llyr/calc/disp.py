@@ -19,7 +19,12 @@ class disp(Base):
         xslice=slice(None),
         cslice=2,
     ):
-        with h5py.File(self.llyr.path, "r") as f:
+        if name is None:
+            name = dset
+        self.llyr.check_path(f"modes/{name}/arr", override)
+        self.llyr.check_path(f"modes/{name}/freqs", override)
+        self.llyr.check_path(f"modes/{name}/kvecs", override)
+        with h5py.File(self.llyr.path, "a") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
             arr = arr[(tslice, zslice, yslice, xslice, cslice)]  # slice
             arr = da.multiply(
@@ -41,12 +46,12 @@ class disp(Base):
             arr = da.absolute(arr)  # from complex to real
             arr = da.sum(arr, axis=1)  # sum y
             arr = arr.compute()
+            arr.to_hdf5(self.llyr.path, f"disp/{name}/arr")
 
         freqs = np.fft.rfftfreq(arr.shape[0], self.llyr.dt)
         kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.llyr.dx)) * 1e-6
-        if name is not None:
-            self.llyr.add_dset(arr, f"{name}/arr", override)
-            self.llyr.add_dset(freqs, f"{name}/freqs", override)
-            self.llyr.add_dset(kvecs, f"{name}/kvecs", override)
+        self.llyr.h5.add_dset(arr, f"modes/{name}/arr", override)
+        self.llyr.h5.add_dset(freqs, f"modes/{name}/freqs", override)
+        self.llyr.h5.add_dset(kvecs, f"modes/{name}/kvecs", override)
 
         return arr

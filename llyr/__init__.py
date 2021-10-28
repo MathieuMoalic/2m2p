@@ -122,5 +122,22 @@ class Llyr:
     def snap(self):
         self.plot.snapshot_png("stable")
 
+    def modes(self, dset: str, f: float, c: int = None):
+        if f"modes/{dset}/arr" not in self.dsets:
+            print("Calculating modes ...")
+            self.calc.modes(dset)
+        fi = int((np.abs(self[f"modes/{dset}/freqs"][:] - f)).argmin())
+        arr = self[f"modes/{dset}/arr"][fi]
+        if c is None:
+            return arr
+        else:
+            return arr[..., c]
+
+    def check_path(self, name: str, override: bool = False):
+        if name in self.dsets and not override:
+            raise NameError(
+                f"The dataset:'{name}' already exists, you can use 'override=True'"
+            )
+
 
 cspectra = cspectra_b(Llyr)

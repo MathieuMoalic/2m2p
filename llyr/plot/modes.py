@@ -6,16 +6,13 @@ from ..base import Base
 
 class modes(Base):
     def plot(self, dset: str, f: float, axes=None):
-        mode1 = self.llyr.calc.mode(dset, f, 0)
-        mode2 = self.llyr.calc.mode(dset, f, 1)
-        mode3 = self.llyr.calc.mode(dset, f, 2)
-        mode_list = np.array([mode1, mode2, mode3])
+        mode_list = self.llyr.modes(dset, f)
         mode_list_max = np.abs(mode_list).max()
         extent = [
             0,
-            mode1.shape[1] * self.llyr.dy * 1e9,
+            mode_list.shape[1] * self.llyr.dy * 1e9,
             0,
-            mode1.shape[0] * self.llyr.dx * 1e9,
+            mode_list.shape[0] * self.llyr.dx * 1e9,
         ]
 
         if axes is None:
@@ -23,10 +20,11 @@ class modes(Base):
         else:
             fig = axes[0, 0].figure
         for c in range(3):
-            mode_abs = np.abs(mode_list[c])
-            mode_ang = np.angle(mode_list[c])
+            mode_abs = np.abs(mode_list[..., c])
+            mode_ang = np.angle(mode_list[..., c])
             alphas = mode_abs / mode_abs.max()
-
+            print(mode_abs.shape)
+            # return mode_abs
             axes[0, c].imshow(
                 mode_abs,
                 cmap="inferno",

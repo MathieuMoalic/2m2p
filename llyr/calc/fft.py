@@ -19,13 +19,10 @@ class fft(Base):
         xslice=slice(None),
         cslice=2,
     ):
-        if "dt" not in self.llyr.attrs:
-            print("Add the 'dt' attribute before calculating the fft")
-            return
-        if name is not None and f"{name}/arr" in self.llyr.dsets and not override:
-            raise NameError(
-                f"'{name}' already exists, you can use 'override=True' to replace it"
-            )
+        if name is None:
+            name = dset
+        self.llyr.check_path(f"fft/{name}/arr", override)
+        self.llyr.check_path(f"fft/{name}/freqs", override)
         with h5py.File(self.llyr.path, "r") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
             arr = arr[(tslice, zslice, yslice, xslice, cslice)]
@@ -43,7 +40,5 @@ class fft(Base):
             arr = arr.compute()
 
         freqs = np.fft.rfftfreq(self.llyr.h5.shape(dset)[0], self.llyr.dt)
-
-        if name is not None:
-            self.llyr.add_dset(arr, f"{name}/arr", override)
-            self.llyr.add_dset(freqs, f"{name}/freqs", override)
+        self.llyr.h5.add_dset(arr, f"fft/{name}/arr", override)
+        self.llyr.h5.add_dset(freqs, f"fft/{name}/freqs", override)

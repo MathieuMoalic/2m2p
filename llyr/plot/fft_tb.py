@@ -15,7 +15,7 @@ class fft_tb(Base):
         axes=None,
     ):
         if axes is None:
-            self.fig, self.axes = plt.subplots(1, 3, sharex=True, figsize=(15, 5))
+            self.fig, self.axes = plt.subplots(1, 3, sharex=True, figsize=(7, 3))
         comps = ["mx", "my", "mz"]
         names = [r"$m_x$", r"$m_y$", r"$m_z$"]
         for i in range(3):
@@ -23,7 +23,7 @@ class fft_tb(Base):
             freqs, spec = self.llyr.calc.fft_tb(
                 c, tmax=fft_tmax, tmin=fft_tmin, tstep=tstep
             )
-            freqs, spec = self.llyr.calc.fminmax(freqs, spec, fmin, fmax)
+            freqs, spec = self.llyr.calc.fminmax(freqs, fmin, fmax, spec=spec)
             ax.plot(freqs, spec)
             peaks = self.llyr.calc.peaks(freqs, spec, thres=thres)
             for peak in peaks:

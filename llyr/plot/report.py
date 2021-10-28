@@ -64,7 +64,7 @@ class report(Base):
             for peak in peaks:
                 modes_comps = []
                 for comp in [0, 1, 2]:
-                    arr = self.llyr.calc.mode(dset, peak.freq, comp)
+                    arr = self.llyr.modes(dset, peak.freq, comp)
                     arr_abs = np.abs(arr)
                     arr_ang = np.angle(arr)
                     arr_alpha = arr_abs / arr_abs.max()
