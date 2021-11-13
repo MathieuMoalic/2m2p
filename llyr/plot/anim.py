@@ -8,16 +8,23 @@ from ..base import Base
 
 
 class anim(Base):
-    def plot(self, dset: str, z: int = 0, tmin: int = 0, tmax: int = -1):
-        arr = self.llyr[dset][tmin:tmax, z, :, :, :]
-        # arr -= arr[0]
-        fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
-        # Arrays
+    def plot(
+        self,
+        dset: str = "m",
+        f: float = 9,
+        z: int = 0,
+        t: int = 25,
+        periods: int = 1,
+        save_path: str = None,
+    ):
+        # f = 11.76
+        arr = self.llyr.calc.anim(dset, f, periods=periods)
+
         arr = np.ma.masked_equal(arr, 0)
         u, v, z = arr[..., 0], arr[..., 1], arr[..., 2]
         alphas = -np.abs(z) + 1
         hsl = np.ones((u.shape[0], u.shape[1], u.shape[2], 3))
-        hsl[..., 0] = np.angle(u + 1j * v) / np.pi / 2 + 0.5  # normalization
+        hsl[..., 0] = 0  # np.angle(u + 1j * v) / np.pi / 2 + 0.5  # normalization
         hsl[..., 1] = np.sqrt(u ** 2 + v ** 2 + z ** 2)
         hsl[..., 2] = (z + 1) / 2
         rgb = hsl2rgb(hsl)
@@ -36,6 +43,7 @@ class anim(Base):
             arr.shape[1] * self.llyr.dy * 1e9,
         ]
         t = 0
+        fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         Q = ax.quiver(
             x,
             y,
@@ -46,7 +54,6 @@ class anim(Base):
             scale_units="xy",
             scale=scale,
         )
-
         ax.imshow(
             rgb[t],
             interpolation="None",
@@ -59,28 +66,28 @@ class anim(Base):
         ax.imshow(
             antidots, interpolation="None", origin="lower", cmap="Set1_r", extent=extent
         )
-        ax.get_images()[0].set_data(rgb[t + 1])
-        ax.set(title=self.llyr.name, xlabel="x (nm)", ylabel="y (nm)")
+        ax.set(xlabel="x (nm)", ylabel="y (nm)", title=f"{f:.2f} GHz")
         fig.tight_layout()
 
         def run(t):
             ax.get_images()[0].set_data(rgb[t])
             Q.set_UVC(u[t, ::stepy, ::stepx], v[t, ::stepy, ::stepx])
             Q.set_alpha(alphas[t, ::stepy, ::stepx])
-            ax.set_title(f"t={t}")
             return ax
 
         ani = mpl.animation.FuncAnimation(
             fig, run, interval=1, frames=np.arange(1, arr.shape[0], dtype="int")
         )
-        anim_save_path = self.llyr.path.replace(".h5", ".mp4")
+        if save_path is None:
+            anim_save_path = f"{self.llyr.path}_{f}.gif"
+        else:
+            anim_save_path = save_path
         ani.save(
             anim_save_path,
             writer="ffmpeg",
             fps=25,
             dpi=300,
-            extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"],
+            # extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"],
         )
-        print(f"Saved at: {anim_save_path}")
+        # print(f"Saved at: {anim_save_path}")
         plt.close()
-        return self

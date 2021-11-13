@@ -9,8 +9,8 @@ from .plot import Plot
 from .calc import Calc
 from .h5 import H5
 from .make import Make
-from .ovf import save_ovf
-from ._utils import cspectra_b
+from .ovf import save_ovf, load_ovf
+from ._utils import cspectra_b, hsl2rgb
 
 
 class Llyr:
@@ -87,7 +87,7 @@ class Llyr:
 
     @property
     def pp(self) -> None:
-        print("Datasets:")
+        print(f"Datasets: ({self.name})")
         for dset_name, dset_shape in self.dsets.items():
             print(f"    {dset_name:<20}: {dset_shape}")
         print("Global Attributes:")
@@ -122,6 +122,9 @@ class Llyr:
     def snap(self):
         self.plot.snapshot_png("stable")
 
+    def c_to_comp(self, c):
+        return ["mx", "my", "mz"][c]
+
     def modes(self, dset: str, f: float, c: int = None):
         if f"modes/{dset}/arr" not in self.dsets:
             print("Calculating modes ...")
@@ -133,11 +136,23 @@ class Llyr:
         else:
             return arr[..., c]
 
-    def check_path(self, name: str, override: bool = False):
-        if name in self.dsets and not override:
-            raise NameError(
-                f"The dataset:'{name}' already exists, you can use 'override=True'"
-            )
+    def check_path(self, dset: str, force: bool = False):
+        if dset in self.dsets:
+            if force:
+                self.h5.delete(dset)
+            else:
+                raise NameError(
+                    f"The dataset:'{dset}' already exists, you can use 'force=True'"
+                )
+
+    def make_report(self):
+        p = self.path.replace(".h5", "")
+        if os.path.exists(f"{p}.report"):
+            return
+        os.makedirs(f"{p}.report")
+        r = self.plot.report(save=f"{p}.report/spectra.pdf")
+        for peak in r.peaks:
+            self.plot.anim(f=peak.freq, save_path=f"{p}.report/{peak.freq:.2f}.gif")
 
 
 cspectra = cspectra_b(Llyr)

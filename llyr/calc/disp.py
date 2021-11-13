@@ -12,7 +12,7 @@ class disp(Base):
         self,
         dset: str,
         name: Optional[str] = None,
-        override: Optional[bool] = False,
+        force: Optional[bool] = False,
         tslice=slice(None),
         zslice=slice(None),
         yslice=slice(None),
@@ -21,12 +21,13 @@ class disp(Base):
     ):
         if name is None:
             name = dset
-        self.llyr.check_path(f"modes/{name}/arr", override)
-        self.llyr.check_path(f"modes/{name}/freqs", override)
-        self.llyr.check_path(f"modes/{name}/kvecs", override)
+        self.llyr.check_path(f"modes/{name}/arr", force)
+        self.llyr.check_path(f"modes/{name}/freqs", force)
+        self.llyr.check_path(f"modes/{name}/kvecs", force)
         with h5py.File(self.llyr.path, "a") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
             arr = arr[(tslice, zslice, yslice, xslice, cslice)]  # slice
+            s = arr.shape
             arr = da.multiply(
                 arr, np.hanning(arr.shape[0])[:, None, None, None]
             )  # hann filter on the t axis
@@ -45,13 +46,12 @@ class disp(Base):
             arr = da.fft.fftshift(arr, axes=(1, 2))
             arr = da.absolute(arr)  # from complex to real
             arr = da.sum(arr, axis=1)  # sum y
-            arr = arr.compute()
             arr.to_hdf5(self.llyr.path, f"disp/{name}/arr")
 
-        freqs = np.fft.rfftfreq(arr.shape[0], self.llyr.dt)
+        freqs = np.fft.rfftfreq(s[0], self.llyr.dt)
         kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.llyr.dx)) * 1e-6
-        self.llyr.h5.add_dset(arr, f"modes/{name}/arr", override)
-        self.llyr.h5.add_dset(freqs, f"modes/{name}/freqs", override)
-        self.llyr.h5.add_dset(kvecs, f"modes/{name}/kvecs", override)
+        self.llyr.h5.add_dset(arr, f"modes/{name}/arr", force)
+        self.llyr.h5.add_dset(freqs, f"modes/{name}/freqs", force)
+        self.llyr.h5.add_dset(kvecs, f"modes/{name}/kvecs", force)
 
         return arr

@@ -12,7 +12,7 @@ class fft(Base):
         self,
         dset: str,
         name: Optional[str] = None,
-        override: Optional[bool] = False,
+        force: Optional[bool] = False,
         tslice=slice(None),
         zslice=slice(None),
         yslice=slice(None),
@@ -21,11 +21,12 @@ class fft(Base):
     ):
         if name is None:
             name = dset
-        self.llyr.check_path(f"fft/{name}/arr", override)
-        self.llyr.check_path(f"fft/{name}/freqs", override)
+        self.llyr.check_path(f"fft/{name}/arr", force)
+        self.llyr.check_path(f"fft/{name}/freqs", force)
         with h5py.File(self.llyr.path, "r") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
             arr = arr[(tslice, zslice, yslice, xslice, cslice)]
+            s = arr.shape
             arr = arr.sum(axis=1)  # sum all z
             arr = da.subtract(arr, arr[0])
             arr = da.subtract(arr, da.average(arr, axis=0)[None, :])
@@ -37,8 +38,7 @@ class fft(Base):
             arr = da.fft.rfft(arr)
             arr = da.absolute(arr)
             arr = da.sum(arr, axis=0)
-            arr = arr.compute()
+            arr.to_hdf5(self.llyr.path, f"fft/{name}/arr")
 
-        freqs = np.fft.rfftfreq(self.llyr.h5.shape(dset)[0], self.llyr.dt)
-        self.llyr.h5.add_dset(arr, f"fft/{name}/arr", override)
-        self.llyr.h5.add_dset(freqs, f"fft/{name}/freqs", override)
+        freqs = np.fft.rfftfreq(s[0], self.llyr.dt)
+        self.llyr.h5.add_dset(freqs, f"fft/{name}/freqs", force)

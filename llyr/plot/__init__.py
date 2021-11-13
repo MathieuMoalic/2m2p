@@ -6,6 +6,7 @@ from .snapshot import snapshot
 from .snapshot_png import snapshot_png
 from .report import report
 from .sin_anim import sin_anim
+from .cross_section import cross_section
 
 
 class Plot:
@@ -18,3 +19,4 @@ class Plot:
         self.snapshot_png = snapshot_png(llyr).plot
         self.report = report(llyr).plot
         self.sin_anim = sin_anim(llyr).plot
+        self.cross_section = cross_section(llyr).plot

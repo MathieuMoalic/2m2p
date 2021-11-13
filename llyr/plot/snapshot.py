@@ -8,7 +8,7 @@ from ..base import Base
 
 
 class snapshot(Base):
-    def plot(self, dset: str, z: int = 0, t: int = -1, ax=None):
+    def plot(self, dset: str = "m", z: int = 0, t: int = -1, ax=None):
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         else:
@@ -33,6 +33,7 @@ class snapshot(Base):
             np.arange(0, u.shape[0], stepy) * self.llyr.dy * 1e9,
         )
         antidots = np.ma.masked_not_equal(self.llyr[dset][0, 0, :, :, 2], 0)
+        print(x.shape, y.shape, u.shape, v.shape)
         ax.quiver(
             x,
             y,

@@ -58,16 +58,22 @@ class report(Base):
             return sorted_peaks, all_peaks
 
         def get_modes(peaks):
+            z = 0
             modes = []
             Mode = namedtuple("Mode", "idx freq amp mx my mz")
             ModeComp = namedtuple("ModeArr", "abs ang alpha")
             for peak in peaks:
                 modes_comps = []
+                arrs = self.llyr.modes(dset, peak.freq)[z, :, :]
                 for comp in [0, 1, 2]:
-                    arr = self.llyr.modes(dset, peak.freq, comp)
+                    arr = arrs[..., comp]
                     arr_abs = np.abs(arr)
                     arr_ang = np.angle(arr)
-                    arr_alpha = arr_abs / arr_abs.max()
+                    amax = arr_abs.max()
+                    if amax == 0:
+                        arr_alpha = arr_abs
+                    else:
+                        arr_alpha = arr_abs / amax
                     modes_comps.append(ModeComp(arr_abs, arr_ang, arr_alpha))
 
                 modes.append(
@@ -107,11 +113,11 @@ class report(Base):
             gs_modes = gs_main[1:].subgridspec(nb_rows, 3, wspace=0, hspace=0)
             extent = [
                 0,
-                modes[0].my.abs.shape[0] * self.llyr.dy * 1e9,
+                modes[0].my.abs.shape[1] * self.llyr.dx * 1e9,
                 0,
-                modes[0].mx.abs.shape[0] * self.llyr.dx * 1e9,
+                modes[0].mx.abs.shape[0] * self.llyr.dy * 1e9,
             ]
-            mode_list_max = np.max([np.max(mode.amp) for mode in modes])
+            # mode_list_max = np.max([np.max(mode.amp) for mode in modes])
             for i, mode in enumerate(modes):
                 gs_mode = gs_modes[i].subgridspec(3, 3, wspace=0, hspace=0)
                 axes = gs_mode.subplots()
@@ -122,8 +128,8 @@ class report(Base):
                     axes[0, c].imshow(
                         mode[c + 3].abs,
                         cmap="inferno",
-                        vmin=0,
-                        vmax=mode_list_max,
+                        # vmin=0,
+                        # vmax=mode_list_max,
                         extent=extent,
                         interpolation="None",
                         aspect="equal",
@@ -144,7 +150,7 @@ class report(Base):
                         cmap="hsv",
                         vmin=-np.pi,
                         vmax=np.pi,
-                        interpolation="None",
+                        interpolation="nearest",
                         extent=extent,
                     )
                 for ax in axes.flatten():
@@ -159,5 +165,11 @@ class report(Base):
         plot_spectra(gs_main, spectra, all_peaks)
         plot_modes(gs_main, modes)
 
-        if save:
+        if isinstance(save, str):
+            fig.savefig(save, dpi=100)
+        elif isinstance(save, bool) and save:
             fig.savefig(self.llyr.path.replace(".h5", ".pdf"), dpi=100)
+
+        self.fig = fig
+        self.peaks = sorted_peaks
+        return self

@@ -17,9 +17,9 @@ class H5:
         path = self.llyr.path.replace(f"{self.llyr.name}", f"{name}.ovf")
         save_ovf(path, arr, self.llyr.dx, self.llyr.dy, self.llyr.dz)
 
-    def create_h5(self, override: bool) -> bool:
+    def create_h5(self, force: bool) -> bool:
         """Creates an empty .h5 file"""
-        if override:
+        if force:
             with h5py.File(self.llyr.path, "w"):
                 return True
         else:
@@ -60,13 +60,13 @@ class H5:
             with h5py.File(self.llyr.path, "a") as f:
                 f[dset].attrs[key] = val
 
-    def add_dset(self, arr: np.ndarray, name: str, override: bool = False):
+    def add_dset(self, arr: np.ndarray, name: str, force: bool = False):
         if name in self.llyr.dsets:
-            if override:
+            if force:
                 self.delete(name)
             else:
                 raise NameError(
-                    f"Dataset with name '{name}' already exists, you can use 'override=True'"
+                    f"Dataset with name '{name}' already exists, you can use 'force=True'"
                 )
         with h5py.File(self.llyr.path, "a") as f:
             f.create_dataset(name, data=arr)
@@ -82,7 +82,7 @@ class H5:
     def load_dset(self, name: str, dset_shape: tuple, ovf_paths: list) -> None:
         with h5py.File(self.llyr.path, "a") as f:
             dset = f.create_dataset(name, dset_shape, np.float32)
-            with mp.Pool(processes=int(mp.cpu_count())) as p:
+            with mp.Pool(processes=int(mp.cpu_count() - 1)) as p:
                 for i, data in enumerate(
                     tqdm(
                         p.imap(load_ovf, ovf_paths),

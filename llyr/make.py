@@ -17,7 +17,7 @@ class Make:
         self.llyr = llyr
         self.skip_ovf: bool
         self.ts: int
-        self.override: bool
+        self.force: bool
         self.out_path: str
         self.mx3_path: str
         self.logs_path: str
@@ -27,7 +27,7 @@ class Make:
         self,
         load_path: Optional[str] = None,
         tmax: Optional[int] = None,
-        override: bool = False,
+        force: bool = False,
         delete_out: bool = False,
         delete_mx3: bool = False,
         skip_ovf: bool = False,
@@ -36,8 +36,8 @@ class Make:
             load_path = self.llyr.path.replace(".h5", ".out")
         self.skip_ovf = skip_ovf
         self.ts = 0
-        self.override = override
-        self.llyr.h5.create_h5(override)
+        self.force = force
+        self.llyr.h5.create_h5(force)
         self.llyr.h5.add_attr("version", "0.1.5")
         self.add_paths(load_path)
         self.add_times()
@@ -113,7 +113,7 @@ class Make:
         for p in snapshots_paths:
             snapshot = imageio.imread(p)
             name = p.split("/")[-1].replace(".png", "")
-            self.llyr.h5.add_dset(snapshot, f"snapshots/{name}", override=self.override)
+            self.llyr.h5.add_dset(snapshot, f"snapshots/{name}", force=self.force)
 
     def add_logs(self):
         """Adds the logs file to the f.attrs"""
@@ -140,9 +140,7 @@ class Make:
                 i.split(" (")[0].replace("# ", "") for i in header.split("\t")
             ]
             for i, h in enumerate(clean_header):
-                self.llyr.h5.add_dset(
-                    data[i], f"{dset_name}/{h}", override=self.override
-                )
+                self.llyr.h5.add_dset(data[i], f"{dset_name}/{h}", force=self.force)
 
     def add_dset_prefixes(self):
         """From the .out folder, get the list of prefixes, each will correspond to a different dataset"""
