@@ -37,16 +37,16 @@ class Make:
         self.skip_ovf = skip_ovf
         self.ts = 0
         self.force = force
-        self.llyr.h5.create_h5(force)
-        self.llyr.h5.add_attr("version", "0.1.5")
+        self.append = self.llyr.h5.create_h5(force)
+        self.llyr.h5.add_attr("version", "0.1.10")
         self.add_paths(load_path)
-        self.add_times()
-        self.add_step_size()
+        # self.add_times()
         self.add_mx3()
         self.add_snapshots()
         self.add_logs()
         self.add_table()
         if not skip_ovf:
+            self.add_step_size()
             self.add_dset_prefixes()
             for prefix, name in self.dset_prefixes.items():
                 self.make_dset(prefix, name=name, tmax=tmax)
@@ -139,6 +139,32 @@ class Make:
             clean_header = [
                 i.split(" (")[0].replace("# ", "") for i in header.split("\t")
             ]
+            grouped_headers = {i[:-1] for i in clean_header}
+            groups = []
+            for gh in grouped_headers:
+                if (
+                    f"{gh}x" in clean_header
+                    and f"{gh}y" in clean_header
+                    and f"{gh}z" in clean_header
+                ):
+                    groups.append(gh)
+            groups = sorted(groups, key=lambda x: len(x), reverse=True)
+            for g in groups:
+                q = []
+                for c in ["x", "y", "z"]:
+                    i = [
+                        x
+                        for x in range(len(clean_header))
+                        if f"{g}{c}" in clean_header[x]
+                    ][0]
+                    q.append(data[i])
+                    clean_header = np.delete(clean_header, i)
+                    data = np.delete(data, i, axis=0)
+                self.llyr.h5.add_dset(
+                    np.array(q, dtype=np.float32).T,
+                    f"{dset_name}/{g}",
+                    force=self.force,
+                )
             for i, h in enumerate(clean_header):
                 self.llyr.h5.add_dset(data[i], f"{dset_name}/{h}", force=self.force)
 

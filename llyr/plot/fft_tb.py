@@ -16,12 +16,10 @@ class fft_tb(Base):
     ):
         if axes is None:
             self.fig, self.axes = plt.subplots(1, 3, sharex=True, figsize=(7, 3))
-        comps = ["mx", "my", "mz"]
         names = [r"$m_x$", r"$m_y$", r"$m_z$"]
-        for i in range(3):
-            c, ax = comps[i], self.axes[i]
+        for i, ax in enumerate(self.axes):
             freqs, spec = self.llyr.calc.fft_tb(
-                c, tmax=fft_tmax, tmin=fft_tmin, tstep=tstep
+                "m", i, tmax=fft_tmax, tmin=fft_tmin, tstep=tstep
             )
             freqs, spec = self.llyr.calc.fminmax(freqs, fmin, fmax, spec=spec)
             ax.plot(freqs, spec)

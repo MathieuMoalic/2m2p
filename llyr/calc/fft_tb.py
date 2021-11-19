@@ -7,18 +7,14 @@ from ..base import Base
 class fft_tb(Base):
     def calc(
         self,
-        column: Union[str, int],
+        dset: str,
+        comp: Union[int, slice] = slice(None),
         tmax: int = None,
         tmin: int = None,
         tstep: int = 1,
         normalize: bool = False,
     ):
-        if isinstance(column, int):
-            column = ["mx", "my", "mz"][column]
-        if self.llyr.h5.shape("table/t")[0] > 2000:
-            tstep = 20
-        y = self.llyr[f"table/{column}"][slice(tmin, tmax, tstep)]
-
+        y = self.llyr[f"table/{dset}"][slice(tmin, tmax, tstep), comp]
         ts = self.llyr["table/t"][:]
         table_dt = (ts[-1] - ts[0]) / len(ts)
         x = np.fft.rfftfreq(y.shape[0], table_dt * tstep) * 1e-9

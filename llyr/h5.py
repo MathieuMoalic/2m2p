@@ -21,15 +21,17 @@ class H5:
         """Creates an empty .h5 file"""
         if force:
             with h5py.File(self.llyr.path, "w"):
-                return True
+                return False
         else:
             if os.path.isfile(self.llyr.path):
-                input_string: str = input(
-                    f"{self.llyr.path} already exists, overwrite it [y/n]?"
-                )
-                if input_string.lower() in ["y", "yes"]:
-                    with h5py.File(self.llyr.path, "w"):
-                        return True
+                # input_string: str = input(
+                #     f"{self.llyr.path} already exists, overwrite it [y/n]?"
+                # )
+                # if input_string.lower() in ["y", "yes"]:
+                #     with h5py.File(self.llyr.path, "w"):
+                #         return True
+                print(f"{self.llyr.path} already exists, appending new data ...")
+                return True
         return False
 
     def shape(self, dset: str) -> Tuple:

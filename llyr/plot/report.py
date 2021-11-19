@@ -21,8 +21,8 @@ class report(Base):
     ):
         def get_spectra() -> dict:
             spectra = {}
-            for dset in ["mx", "my", "mz"]:
-                y = self.llyr[f"table/{dset}"][slice(tmin, tmax, tstep)]
+            for c in range(3):
+                y = self.llyr[f"table/{dset}"][slice(tmin, tmax, tstep), c]
                 ts = self.llyr["table/t"][slice(tmin, tmax, tstep)]
                 table_dt = (ts[-1] - ts[0]) / len(ts)
                 x = np.fft.rfftfreq(y.shape[0], table_dt * tstep) * 1e-9
@@ -32,19 +32,17 @@ class report(Base):
                 y = np.fft.rfft(y)
                 y = np.abs(y)
                 spectra["freqs"] = x
-                spectra[dset] = y
+                spectra[c] = y
             return spectra
 
         def get_peaks(s):
             Peak = namedtuple("Peak", "idx freq amp")
             all_peaks = {}
-            for dset in ["mx", "my", "mz"]:
-                idx = peakutils.indexes(s[dset], thres=thres, min_dist=min_dist)
-                peak_amp = [s[dset][i] for i in idx]
+            for c in range(3):
+                idx = peakutils.indexes(s[c], thres=thres, min_dist=min_dist)
+                peak_amp = [s[c][i] for i in idx]
                 freqs = [s["freqs"][i] for i in idx]
-                all_peaks[dset] = [
-                    Peak(i, f, a) for i, f, a in zip(idx, freqs, peak_amp)
-                ]
+                all_peaks[c] = [Peak(i, f, a) for i, f, a in zip(idx, freqs, peak_amp)]
             no_dup_peaks = []
             all_freqs = []
             for peak_list in all_peaks.values():
@@ -92,7 +90,7 @@ class report(Base):
             gs_spectra = gs_main[0].subgridspec(1, 3, wspace=0, hspace=0)
             axes = gs_spectra.subplots()
             axes[1].set_title(self.llyr.name)
-            for c, ax in zip(["mx", "my", "mz"], axes):
+            for c, ax in enumerate(axes):
                 peaks = all_peaks[c]
                 ax.plot(spectra["freqs"], spectra[c])
                 for peak in peaks:

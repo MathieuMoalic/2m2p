@@ -66,7 +66,7 @@ def cspectra_b(Llyr):
             cmaps.append(mpl.colors.ListedColormap(vals))
         paths = glob.glob(f"{ps}/*.h5")[:17]
         fig, ax = plt.subplots(1, 1, figsize=(5, 5), sharex=True, sharey=True)
-        for c, cmap in zip(["mx", "mz"], [cmaps[0], cmaps[2]]):
+        for c, cmap in zip([0,1], [cmaps[0], cmaps[2]]):
             names = []
             arr = []
             for p in paths:
