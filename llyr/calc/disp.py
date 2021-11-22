@@ -24,7 +24,7 @@ class disp(Base):
         self.llyr.check_path(f"modes/{name}/arr", force)
         self.llyr.check_path(f"modes/{name}/freqs", force)
         self.llyr.check_path(f"modes/{name}/kvecs", force)
-        with h5py.File(self.llyr.path, "a") as f:
+        with h5py.File(self.llyr.apath, "a") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
             arr = arr[(tslice, zslice, yslice, xslice, cslice)]  # slice
             s = arr.shape
@@ -46,12 +46,14 @@ class disp(Base):
             arr = da.fft.fftshift(arr, axes=(1, 2))
             arr = da.absolute(arr)  # from complex to real
             arr = da.sum(arr, axis=1)  # sum y
-            arr.to_hdf5(self.llyr.path, f"disp/{name}/arr")
+            arr.to_hdf5(self.llyr.apath, f"disp/{name}/arr")
 
         freqs = np.fft.rfftfreq(s[0], self.llyr.dt)
         kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.llyr.dx)) * 1e-6
-        self.llyr.h5.add_dset(arr, f"modes/{name}/arr", force)
-        self.llyr.h5.add_dset(freqs, f"modes/{name}/freqs", force)
-        self.llyr.h5.add_dset(kvecs, f"modes/{name}/kvecs", force)
+        self.llyr.z.create_dataset(
+            f"modes/{name}/arr", data=arr, chunks=(1, None, None, None, None)
+        )
+        self.llyr.z.create_dataset(f"modes/{name}/freqs", data=freqs, chunks=(None))
+        self.llyr.z.create_dataset(f"modes/{name}/kvecs", data=kvecs, chunks=(None))
 
         return arr

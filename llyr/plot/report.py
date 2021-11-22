@@ -89,7 +89,7 @@ class report(Base):
         def plot_spectra(gs_main, spectra, all_peaks):
             gs_spectra = gs_main[0].subgridspec(1, 3, wspace=0, hspace=0)
             axes = gs_spectra.subplots()
-            axes[1].set_title(self.llyr.name)
+            axes[1].set_title(self.llyr.aname)
             for c, ax in enumerate(axes):
                 peaks = all_peaks[c]
                 ax.plot(spectra["freqs"], spectra[c])
@@ -166,7 +166,7 @@ class report(Base):
         if isinstance(save, str):
             fig.savefig(save, dpi=100)
         elif isinstance(save, bool) and save:
-            fig.savefig(self.llyr.path.replace(".h5", ".pdf"), dpi=100)
+            fig.savefig(f"{self.llyr.apath}/spectra.pdf", dpi=100)
 
         self.fig = fig
         self.peaks = sorted_peaks

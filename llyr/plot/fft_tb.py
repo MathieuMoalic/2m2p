@@ -49,7 +49,7 @@ class fft_tb(Base):
         self.axes[0].text(
             0,
             1.1,
-            self.llyr.name,
+            self.llyr.aname,
             transform=self.axes[0].transAxes,
             fontweight="bold",
             ha="left",

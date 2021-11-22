@@ -71,7 +71,7 @@ class snapshot(Base):
                 arr.shape[0] * self.llyr.dy * 1e9,
             ],
         )
-        ax.set(title=self.llyr.name, xlabel="x (nm)", ylabel="y (nm)")
+        ax.set(title=self.llyr.aname, xlabel="x (nm)", ylabel="y (nm)")
         L, H = np.mgrid[0 : 1 : arr.shape[1] * 1j, 0:1:20j]  # type: ignore
         S = np.ones_like(L)
         rgb = hsl2rgb(np.dstack((H, S, L)))

@@ -35,7 +35,7 @@ class imshow(Base):
             ],
         )
         ax.set(
-            title=self.llyr.name,
+            title=self.llyr.aname,
             xlabel="x (nm)",
             ylabel="y (nm)",
         )

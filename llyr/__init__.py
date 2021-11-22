@@ -3,120 +3,47 @@ import os
 from pathlib import Path
 
 import numpy as np
-import h5py
+import zarr
 
 from .plot import Plot
 from .calc import Calc
-from .h5 import H5
-from .make import Make
+from .make import add_table
 from .ovf import save_ovf, load_ovf
-from ._utils import cspectra_b, hsl2rgb
 
 
-class Llyr:
+def open(path):  # pylint: disable=redefined-builtin
+    if "ssh://" in path:
+        return Group(zarr.storage.FSStore(path))
+    else:
+        return Group(zarr.storage.DirectoryStore(path))
+
+
+class Group(zarr.hierarchy.Group):
     def __init__(self, path: str) -> None:
-        path = os.path.abspath(path)
-        self._add_path(path)
-        self._getitem_dset: Optional[str] = None
+        zarr.hierarchy.Group.__init__(self, path)
+        self.apath = Path(path.path).absolute()
+        self.aname = self.apath.name.replace(self.apath.suffix, "")
         self.plot = Plot(self)
         self.calc = Calc(self)
-        self.h5 = H5(self)
-        self.make = Make(self).make
-
-    def _add_path(self, path):
-        p = Path(path)
-        if p.suffix == "":
-            self.name = p.name
-        else:
-            self.name = p.name.replace(p.suffix, "")
-        self.path = f"{str(p.parent)}/{self.name}.h5"
+        self.reload()
 
     def __repr__(self) -> str:
-        return f"Llyr('{self.name}')"
+        return f"Llyr('{self.aname}')"
 
     def __str__(self) -> str:
-        return f"Llyr('{self.name}')"
+        return f"Llyr('{self.aname}')"
 
-    def __getitem__(
-        self,
-        index: Union[str, Tuple[Union[int, slice], ...]],
-    ) -> Union["Llyr", float, np.ndarray]:
-        if isinstance(index, (slice, tuple, int)):
-            # if dset is defined
-            if isinstance(self._getitem_dset, str):
-                out_dset: np.ndarray = self.h5.get_dset(self._getitem_dset, index)
-                self._getitem_dset = None
-                return out_dset
-            else:
-                raise AttributeError("You can only slice datasets")
+    def reload(self):
+        add_table(self)
+        self._update_class_dict()
 
-        elif isinstance(index, str):
-            # if dataset
-            if index in self.dsets:
-                self._getitem_dset = index
-                return self
-            # if attribute
-            elif index in self.attrs:
-                out_attribute: float = self.attrs[index]
-                return out_attribute
-            else:
-                raise KeyError("No such Dataset or Attribute")
-        else:
-            print()
-            raise TypeError(f"{index}, {type(index)}")
+    def _update_class_dict(self):
+        for k, v in self.attrs.items():
+            self.__dict__[k] = v
 
     @property
-    def mx3(self) -> None:
-        print(self["mx3"])
-
-    @property
-    def dt(self) -> float:
-        return self.attrs["dt"]
-
-    @property
-    def dx(self) -> float:
-        return self.attrs["dx"]
-
-    @property
-    def dy(self) -> float:
-        return self.attrs["dy"]
-
-    @property
-    def dz(self) -> float:
-        return self.attrs["dz"]
-
-    @property
-    def pp(self) -> None:
-        print(f"Datasets: ({self.name})")
-        for dset_name, dset_shape in self.dsets.items():
-            print(f"    {dset_name:<20}: {dset_shape}")
-        print("Global Attributes:")
-        for key, val in self.attrs.items():
-            if key in ["mx3", "script", "logs"]:
-                val = val.replace("\n", "")
-                print(f"    {key:<20}= {val[:10]}...")
-            else:
-                print(f"    {key:<20}= {val}")
-
-    @property
-    def dsets(self) -> Dict[str, str]:
-        def add_dset(name, obj):
-            # pylint: disable=protected-access
-            if isinstance(obj, h5py._hl.dataset.Dataset):
-                dsets[name] = obj.shape
-
-        dsets: Dict[str, str] = {}
-        with h5py.File(self.path, "r") as f:
-            f.visititems(add_dset)
-        return dsets
-
-    @property
-    def attrs(self) -> dict:
-        attrs = {}
-        with h5py.File(self.path, "r") as f:
-            for k, v in f.attrs.items():
-                attrs[k] = v
-        return attrs
+    def p(self):
+        return self.tree(expand=True)
 
     @property
     def snap(self):
@@ -126,7 +53,7 @@ class Llyr:
         return ["mx", "my", "mz"][c]
 
     def modes(self, dset: str, f: float, c: int = None):
-        if f"modes/{dset}/arr" not in self.dsets:
+        if f"modes/{dset}/arr" not in self.z:
             print("Calculating modes ...")
             self.calc.modes(dset)
         fi = int((np.abs(self[f"modes/{dset}/freqs"][:] - f)).argmin())
@@ -137,22 +64,18 @@ class Llyr:
             return arr[..., c]
 
     def check_path(self, dset: str, force: bool = False):
-        if dset in self.dsets:
+        if dset in self.z:
             if force:
-                self.h5.delete(dset)
+                del self.z[dset]
             else:
                 raise NameError(
                     f"The dataset:'{dset}' already exists, you can use 'force=True'"
                 )
 
     def make_report(self):
-        p = self.path.replace(".h5", "")
-        if os.path.exists(f"{p}.report"):
-            return
-        os.makedirs(f"{p}.report")
-        r = self.plot.report(save=f"{p}.report/spectra.pdf")
+        os.makedirs(f"{self.apath}/report")
+        r = self.plot.report(save=f"{self.apath}/report/spectra.pdf")
         for peak in r.peaks:
-            self.plot.anim(f=peak.freq, save_path=f"{p}.report/{peak.freq:.2f}.gif")
-
-
-cspectra = cspectra_b(Llyr)
+            self.plot.anim(
+                f=peak.freq, save_path=f"{self.apath}/report/{peak.freq:.2f}.gif"
+            )

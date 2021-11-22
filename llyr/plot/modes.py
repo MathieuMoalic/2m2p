@@ -75,7 +75,7 @@ class modes(Base):
             cb.ax.set_ylabel("Phase")
         # fi = (np.abs(self.llyr[f"mode_list/{dset}/freqs"][:] - f)).argmin()
         # ff = self.llyr[f"mode_list/{dset}/freqs"][:][fi]
-        fig.suptitle(f"{self.llyr.name}")
+        fig.suptitle(f"{self.llyr.aname}")
         fig.tight_layout()
         # for ax in axes.flatten():
         #     ax.set(xticks=[], yticks=[])

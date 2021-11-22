@@ -79,7 +79,7 @@ class anim(Base):
             fig, run, interval=1, frames=np.arange(1, arr.shape[0], dtype="int")
         )
         if save_path is None:
-            anim_save_path = f"{self.llyr.path}_{f}.gif"
+            anim_save_path = f"{self.llyr.apath}_{f}.gif"
         else:
             anim_save_path = save_path
         ani.save(
