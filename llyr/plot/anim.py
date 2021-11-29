@@ -24,7 +24,7 @@ class anim(Base):
         u, v, z = arr[..., 0], arr[..., 1], arr[..., 2]
         alphas = -np.abs(z) + 1
         hsl = np.ones((u.shape[0], u.shape[1], u.shape[2], 3))
-        hsl[..., 0] = 0  # np.angle(u + 1j * v) / np.pi / 2 + 0.5  # normalization
+        hsl[..., 0] = 0  # np.angle(u + 1j * v) / np.pi / 2  # normalization
         hsl[..., 1] = np.sqrt(u ** 2 + v ** 2 + z ** 2)
         hsl[..., 2] = (z + 1) / 2
         rgb = hsl2rgb(hsl)

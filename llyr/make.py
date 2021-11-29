@@ -30,12 +30,12 @@ def add_table(llyr, dset_name: str = "table"):
                 q.append(data[i])
                 clean_header = np.delete(clean_header, i)
                 data = np.delete(data, i, axis=0)
-            if f"{dset_name}/{g}" in llyr.z:
-                del llyr.z[f"{dset_name}/{g}"]
-            llyr.z.create_dataset(
+            if f"{dset_name}/{g}" in llyr:
+                del llyr[f"{dset_name}/{g}"]
+            llyr.create_dataset(
                 f"{dset_name}/{g}", data=np.array(q, dtype=np.float32).T
             )
         for i, h in enumerate(clean_header):
-            if f"{dset_name}/{h}" in llyr.z:
-                del llyr.z[f"{dset_name}/{h}"]
-            llyr.z.create_dataset(f"{dset_name}/{h}", data=data[i])
+            if f"{dset_name}/{h}" in llyr:
+                del llyr[f"{dset_name}/{h}"]
+            llyr.create_dataset(f"{dset_name}/{h}", data=data[i])

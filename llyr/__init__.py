@@ -8,10 +8,11 @@ import zarr
 from .plot import Plot
 from .calc import Calc
 from .make import add_table
-from .ovf import save_ovf, load_ovf
 
 
-def open(path):  # pylint: disable=redefined-builtin
+def op(path):
+    if ".zarr" not in path or ".out" not in path:
+        path = f"{path}.zarr"
     if "ssh://" in path:
         return Group(zarr.storage.FSStore(path))
     else:
@@ -42,8 +43,12 @@ class Group(zarr.hierarchy.Group):
             self.__dict__[k] = v
 
     @property
-    def p(self):
+    def pp(self):
         return self.tree(expand=True)
+
+    @property
+    def p(self):
+        print(self.tree())
 
     @property
     def snap(self):
@@ -53,7 +58,7 @@ class Group(zarr.hierarchy.Group):
         return ["mx", "my", "mz"][c]
 
     def modes(self, dset: str, f: float, c: int = None):
-        if f"modes/{dset}/arr" not in self.z:
+        if f"modes/{dset}/arr" not in self:
             print("Calculating modes ...")
             self.calc.modes(dset)
         fi = int((np.abs(self[f"modes/{dset}/freqs"][:] - f)).argmin())
@@ -64,9 +69,9 @@ class Group(zarr.hierarchy.Group):
             return arr[..., c]
 
     def check_path(self, dset: str, force: bool = False):
-        if dset in self.z:
+        if dset in self:
             if force:
-                del self.z[dset]
+                del self[dset]
             else:
                 raise NameError(
                     f"The dataset:'{dset}' already exists, you can use 'force=True'"

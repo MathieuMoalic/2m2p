@@ -2,7 +2,7 @@
 # Llyr
 micromagnetic post processing library
 
-transform a .out folder with .ovf files inside into a nice hdf5 (h5) file. h5 files let you store huge amounts of numerical data, and easily manipulate that data from NumPy. For example, you can slice into multi-terabyte datasets stored on disk, as if they were real NumPy arrays. Thousands of datasets can be stored in a single file, categorized and tagged however you want
+Wrapper around a `zarr.hierarchy.Group` to implement convenience functions that work with the ouput of a modified mumax3.
 
 ## Installation
 
@@ -12,22 +12,20 @@ $ pip install llyr
 
 ## Usage
 
-Creating
+#### Creating
 ```python
->>> from llyr import Llyr
->>> job = Llyr("path/to/new/h5") # creating a blank h5 if it doesn't exist
+import llyr
+job = llyr.open("path/to/out/folder")
+# or through any remote protocol 
+job = llyr.open("ssh://username@remote.com:/home/username/data1.zarr/")
 ```
-Building from the *out* folder
+#### Visualizations
+
 ```python
->>> job.make("path/to/out/folder")
+job.p # list a dataset tree
+job.snapshot('dataset_name') # quick view 
 ```
-Visualizations
+#### Accessing data
 ```python
->>> job.p # list the datasets and attributes
->>> job.snapshot('dataset_name') # quick view 
-```
-Postprocessing
-```python
->>> disp = job.disp("dataset_name") # calculating the dispersion
->>> fft = job.fft('dataset_name') # calculating the fft spectrum
+arr = job.dataset_name[[0,25],...,2] # Numpy fancy indexing works too
 ```

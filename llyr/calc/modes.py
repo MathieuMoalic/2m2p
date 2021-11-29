@@ -13,7 +13,7 @@ class modes(Base):
         self.llyr.check_path(f"modes/{name}/arr", force)
         self.llyr.check_path(f"modes/{name}/freqs", force)
         with ProgressBar():
-            arr = da.from_array(self.llyr.z[dset], chunks=(None, None, 16, None, None))
+            arr = da.from_array(self.llyr[dset], chunks=(None, None, 16, None, None))
             arr = arr[:tmax]
             s = arr.shape
             arr = da.fft.rfft(arr, axis=0)  # pylint: disable=unexpected-keyword-arg
