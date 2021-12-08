@@ -1,13 +1,11 @@
 import os
 import configparser
 import glob
-import multiprocessing as mp
 
 import numpy as np
 from matplotlib import pyplot as plt
 import matplotlib as mpl
 from appdirs import user_config_dir
-from tqdm import tqdm
 
 
 def get_config() -> configparser.SectionProxy:
@@ -19,6 +17,26 @@ def get_config() -> configparser.SectionProxy:
     config = configparser.ConfigParser()
     config.read(config_path)
     return config["llyr"]
+
+
+def normalize(arr):
+    with np.errstate(divide="ignore", invalid="ignore"):
+        return arr / np.linalg.norm(arr, axis=-1)[..., None]
+
+
+def rgb_int_from_vectors(arr):
+    x, y, z = arr[..., 0], arr[..., 1], arr[..., 2]
+    h = np.angle(x + 1j * y, deg=True)
+    s = np.sqrt(x ** 2 + y ** 2 + z ** 2)
+    l = (z + 1) / 2
+    rgb = np.zeros_like(arr, dtype=np.int32)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        for i, n in enumerate([0, 8, 4]):
+            k = (n + h / 30) % 12
+            a = s * np.minimum(l, 1 - l)
+            k = np.clip(np.minimum(k - 3, 9 - k), -1, 1)
+            rgb[..., i] = (l - a * k) * 255
+    return (rgb[..., 0] << 16) + (rgb[..., 1] << 8) + rgb[..., 2]
 
 
 def hsl2rgb(hsl):

@@ -62,7 +62,7 @@ class report(Base):
             ModeComp = namedtuple("ModeArr", "abs ang alpha")
             for peak in peaks:
                 modes_comps = []
-                arrs = self.llyr.modes(dset, peak.freq)[z, :, :]
+                arrs = self.llyr.get_mode(dset, peak.freq)[z, :, :]
                 for comp in [0, 1, 2]:
                     arr = arrs[..., comp]
                     arr_abs = np.abs(arr)

@@ -6,7 +6,7 @@ from ..base import Base
 
 class modes(Base):
     def plot(self, dset: str, f: float, z: int = 0, axes=None):
-        mode_list = self.llyr.modes(dset, f)[z]
+        mode_list = self.llyr.get_mode(dset, f)[z]
         mode_list_max = np.abs(mode_list).max()
         extent = [
             0,

@@ -33,7 +33,6 @@ class snapshot(Base):
             np.arange(0, u.shape[0], stepy) * self.llyr.dy * 1e9,
         )
         antidots = np.ma.masked_not_equal(self.llyr[dset][0, 0, :, :, 2], 0)
-        print(x.shape, y.shape, u.shape, v.shape)
         ax.quiver(
             x,
             y,
