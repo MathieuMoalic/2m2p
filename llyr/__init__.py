@@ -10,7 +10,6 @@ import h5py
 
 from .plot import Plot
 from .calc import Calc
-from .make import add_table
 
 
 def op(path):
@@ -38,7 +37,6 @@ class Group(zarr.hierarchy.Group):
         return f"Llyr('{self.aname}')"
 
     def reload(self):
-        add_table(self)
         self._update_class_dict()
 
     def _update_class_dict(self):
