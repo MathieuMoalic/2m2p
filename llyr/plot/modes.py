@@ -75,9 +75,53 @@ class modes(Base):
             cb.ax.set_ylabel("Phase")
         # fi = (np.abs(self.llyr[f"mode_list/{dset}/freqs"][:] - f)).argmin()
         # ff = self.llyr[f"mode_list/{dset}/freqs"][:][fi]
-        fig.suptitle(f"{self.llyr.aname}")
+        fig.suptitle(f"{self.llyr.sim_name}")
         fig.tight_layout()
         # for ax in axes.flatten():
         #     ax.set(xticks=[], yticks=[])
         self.fig = fig
         return self
+
+    def plot_one(
+        self, ax: plt.Axes, dset: str, f: float, comp: int, color: str, z: int = 0
+    ):
+        mode = self.llyr.get_mode(dset, f, comp)[z]
+
+        extent = [
+            0,
+            mode.shape[1] * self.llyr.dx * 1e9,
+            0,
+            mode.shape[0] * self.llyr.dy * 1e9,
+        ]
+        if color == "amp":
+            ax.imshow(
+                np.abs(mode),
+                cmap="inferno",
+                vmin=0,
+                extent=extent,
+                aspect="equal",
+            )
+        elif color == "phase":
+            ax.imshow(
+                np.angle(mode),
+                aspect="equal",
+                cmap="hsv",
+                vmin=-np.pi,
+                vmax=np.pi,
+                interpolation="None",
+                extent=extent,
+            )
+        elif color == "phaseamp":
+            ax.imshow(
+                np.angle(mode),
+                aspect="equal",
+                cmap="hsv",
+                vmin=-np.pi,
+                vmax=np.pi,
+                extent=extent,
+                alpha=np.abs(mode) / np.abs(mode).max(),
+            )
+        else:
+            raise ValueError(
+                "Invalid 'color' argument, possible values are: ['amp','phase','phaseamp']"
+            )

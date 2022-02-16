@@ -1,34 +1,28 @@
 import os
-import configparser
 import glob
+import multiprocessing as mp
+import re
 
 import numpy as np
+import numpy.typing as npt
 from matplotlib import pyplot as plt
 import matplotlib as mpl
-from appdirs import user_config_dir
+import zarr
+import h5py
+from numcodecs import Blosc
 
 
-def get_config() -> configparser.SectionProxy:
-    config_dir = user_config_dir("llyr")
-    if os.path.isfile("llyr.ini"):
-        config_path = "llyr.ini"
-    elif os.path.isfile(f"{config_dir}/llyr.ini"):
-        config_path = f"{config_dir}/llyr.ini"
-    config = configparser.ConfigParser()
-    config.read(config_path)
-    return config["llyr"]
-
-
-def normalize(arr):
+def normalize(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
     with np.errstate(divide="ignore", invalid="ignore"):
-        return arr / np.linalg.norm(arr, axis=-1)[..., None]
+        out: npt.NDArray[np.float32] = arr / np.linalg.norm(arr, axis=-1)[..., None]
+        return out
 
 
-def rgb_int_from_vectors(arr):
+def rgb_int_from_vectors(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.int32]:
     x, y, z = arr[..., 0], arr[..., 1], arr[..., 2]
     h = np.angle(x + 1j * y, deg=True)
-    s = np.sqrt(x ** 2 + y ** 2 + z ** 2)
-    l = (z + 1) / 2
+    s = np.sqrt(x**2 + y**2 + z**2)
+    l = (z + 1) / 2  # disable: flake8
     rgb = np.zeros_like(arr, dtype=np.int32)
     with np.errstate(divide="ignore", invalid="ignore"):
         for i, n in enumerate([0, 8, 4]):
@@ -126,61 +120,102 @@ def cspectra_b(Llyr):
     return cspectra
 
 
-# def load_dset(self, name: str, dset_shape: tuple, ovf_paths: list) -> None:
-#     dset = llyr.create_dataset(name, dset_shape, np.float32)
-#     with mp.Pool(processes=int(mp.cpu_count() - 1)) as p:
-#         for i, data in enumerate(
-#             tqdm(
-#                 p.imap(load_ovf, ovf_paths),
-#                 leave=False,
-#                 desc=name,
-#                 total=len(ovf_paths),
-#             )
-#         ):
-#             dset[i] = data
+def merge_table(m):
+    for d in ["m", "B_ext"]:
+        if f"table/{d}x" in m:
+            x = m[f"table/{d}x"]
+            y = m[f"table/{d}y"]
+            z = m[f"table/{d}z"]
+            m.create_dataset(f"table/{d}", data=np.array([x, y, z]).T)
+            del m[f"table/{d}x"]
+            del m[f"table/{d}y"]
+            del m[f"table/{d}z"]
 
 
-# def get_ovf_parms(ovf_path: str) -> dict:
-#     """Return a tuple of the shape of the ovf file at the ovf_path"""
-#     with open(ovf_path, "rb") as f:
-#         while True:
-#             line = f.readline().strip().decode("ASCII")
-#             if "valuedim" in line:
-#                 c = int(line.split(" ")[-1])
-#             if "xnodes" in line:
-#                 x = int(line.split(" ")[-1])
-#             if "ynodes" in line:
-#                 y = int(line.split(" ")[-1])
-#             if "znodes" in line:
-#                 z = int(line.split(" ")[-1])
-#             if "xstepsize" in line:
-#                 dx = float(line.split(" ")[-1])
-#             if "ystepsize" in line:
-#                 dy = float(line.split(" ")[-1])
-#             if "zstepsize" in line:
-#                 dz = float(line.split(" ")[-1])
-#             if "Desc: Total simulation time:" in line:
-#                 t = float(line.split("  ")[-2])
-#             if "End: Header" in line:
-#                 break
-#     parms = {"shape": (z, y, x, c), "dx": dx, "dy": dy, "dz": dz, "t": t}
-#     return parms
+def h5_to_zarr(p, remove=False):
+    source = h5py.File(p, "r")
+    dest = zarr.open(p.replace(".h5", ".zarr"), mode="a")
+    print("Copying:", p)
+    zarr.copy_all(source, dest)
+    print("Merging tables ..")
+    merge_table(dest)
+    source.close()
+    print("Removing ...")
+    if remove:
+        os.remove(p)
+    print("Done")
 
 
-# def load_ovf(ovf_path: str) -> np.ndarray:
-#     """Returns an np.ndarray from the ovf"""
-#     with open(ovf_path, "rb") as f:
-#         ovf_shape = [0, 0, 0, 0]
-#         for _ in range(28):
-#             line = f.readline().strip().decode("ASCII")
-#             if "valuedim" in line:
-#                 ovf_shape[3] = int(line.split(" ")[-1])
-#             if "xnodes" in line:
-#                 ovf_shape[2] = int(line.split(" ")[-1])
-#             if "ynodes" in line:
-#                 ovf_shape[1] = int(line.split(" ")[-1])
-#             if "znodes" in line:
-#                 ovf_shape[0] = int(line.split(" ")[-1])
-#         count = ovf_shape[0] * ovf_shape[1] * ovf_shape[2] * ovf_shape[3] + 1
-#         arr = np.fromfile(f, "<f4", count=count)[1:].reshape(ovf_shape)
-#     return arr
+def load_ovf(path: str):
+    with open(path, "rb") as f:
+        dims = np.array([0, 0, 0, 0])
+        while True:
+            line = f.readline().strip().decode("ASCII")
+            if "valuedim" in line:
+                dims[3] = int(line.split(" ")[-1])
+            if "xnodes" in line:
+                dims[2] = int(line.split(" ")[-1])
+            if "ynodes" in line:
+                dims[1] = int(line.split(" ")[-1])
+            if "znodes" in line:
+                dims[0] = int(line.split(" ")[-1])
+            if "Begin: Data" in line:
+                break
+        count = int(dims[0] * dims[1] * dims[2] * dims[3] + 1)
+        arr = np.fromfile(f, "<f4", count=count)[1:].reshape(dims)
+    return arr
+
+
+def get_ovf_parms(path: str):
+    with open(path, "rb") as f:
+        parms: dict(int, int, int, int, float, float, float) = {}
+        while True:
+            line = f.readline().strip().decode("ASCII")
+            if "valuedim" in line:
+                parms["comp"] = int(line.split(" ")[-1])
+            if "xnodes" in line:
+                parms["Nx"] = int(line.split(" ")[-1])
+            if "ynodes" in line:
+                parms["Ny"] = int(line.split(" ")[-1])
+            if "znodes" in line:
+                parms["Nz"] = int(line.split(" ")[-1])
+            if "xstepsize" in line:
+                parms["dx"] = float(line.split(" ")[-1])
+            if "ystepsize" in line:
+                parms["dy"] = float(line.split(" ")[-1])
+            if "zstepsize" in line:
+                parms["dz"] = float(line.split(" ")[-1])
+            if "Begin: Data" in line:
+                break
+    return parms
+
+
+def out_to_zarr(out_path: str, zarr_path: str, tmax=None):
+    r = re.compile(r"(.*)(\d{6})")
+    ovfs = sorted(glob.glob(f"{out_path}/*.ovf"))
+    ovfs = [p.split("/")[-1].replace(".ovf", "") for p in ovfs]
+    dsets = []
+    for ovf in ovfs:
+        m = r.match(ovf)
+        if m:
+            dset = m.groups()[0]
+        else:
+            dset = ovf
+        if dset not in dsets:
+            dsets.append(dset)
+    m = zarr.open(zarr_path)
+    for dset in dsets:
+        ovfs = sorted(glob.glob(f"{out_path}/{dset}*.ovf"))[:tmax]
+        parms = get_ovf_parms(ovfs[0])
+        dset_shape = (len(ovfs), parms["Nz"], parms["Ny"], parms["Nx"], parms["comp"])
+        zarr_dset = m.create_dataset(
+            dset,
+            shape=dset_shape,
+            chunks=(5, parms["Nz"], 64, 64, parms["comp"]),
+            dtype=np.float32,
+            compressor=Blosc(cname="zstd", clevel=1, shuffle=Blosc.SHUFFLE),
+            overwrite=True,
+        )
+        pool = mp.Pool(processes=int(mp.cpu_count() - 1))
+        for i, d in enumerate(pool.imap(load_ovf, ovfs)):
+            zarr_dset[i] = d

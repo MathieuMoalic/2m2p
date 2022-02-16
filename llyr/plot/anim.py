@@ -25,7 +25,7 @@ class anim(Base):
         alphas = -np.abs(z) + 1
         hsl = np.ones((u.shape[0], u.shape[1], u.shape[2], 3))
         hsl[..., 0] = 0  # np.angle(u + 1j * v) / np.pi / 2  # normalization
-        hsl[..., 1] = np.sqrt(u ** 2 + v ** 2 + z ** 2)
+        hsl[..., 1] = np.sqrt(u**2 + v**2 + z**2)
         hsl[..., 2] = (z + 1) / 2
         rgb = hsl2rgb(hsl)
         stepx = max(int(u.shape[2] / 60), 1)
@@ -79,7 +79,7 @@ class anim(Base):
             fig, run, interval=1, frames=np.arange(1, arr.shape[0], dtype="int")
         )
         if save_path is None:
-            anim_save_path = f"{self.llyr.apath}_{f}.gif"
+            anim_save_path = f"{self.llyr.abs_path}_{f}.gif"
         else:
             anim_save_path = save_path
         ani.save(

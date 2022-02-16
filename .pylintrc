@@ -1,5 +1,6 @@
 [MASTER]
-
+; max-line-length = 88
+; extend-ignore = E203,W503
 # A comma-separated list of package or module names from where C extensions may
 # be loaded. Extensions are loading into the active Python interpreter and may
 # run arbitrary code.
@@ -66,6 +67,11 @@ confidence=
 # no Warning level messages displayed, use "--disable=all --enable=classes
 # --disable=W".
 disable=
+        unspecified-encoding,
+        invalid-name,
+        missing-class-docstring,
+        missing-function-docstring,
+        too-many-branches,
         attribute-defined-outside-init,
         too-many-statements,
         too-few-public-methods,

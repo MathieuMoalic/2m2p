@@ -23,7 +23,7 @@ class fft(Base):
             name = dset
         self.llyr.check_path(f"fft/{name}/arr", force)
         self.llyr.check_path(f"fft/{name}/freqs", force)
-        with h5py.File(self.llyr.apath, "r") as f:
+        with h5py.File(self.llyr.abs_path, "r") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
             arr = arr[(tslice, zslice, yslice, xslice, cslice)]
             s = arr.shape
@@ -39,7 +39,7 @@ class fft(Base):
             arr = da.absolute(arr)
             arr = da.sum(arr, axis=0)
             # da.to_zarr(arr, f"fft/{name}/arr")
-            arr.to_zarr(self.llyr.apath, f"fft/{name}/arr")
+            arr.to_zarr(self.llyr.abs_path, f"fft/{name}/arr")
 
         freqs = np.fft.rfftfreq(s[0], self.llyr.dt)
         self.llyr.create_dataset(

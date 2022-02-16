@@ -10,16 +10,15 @@ class fft_tb(Base):
         fmax=25,
         fft_tmin=0,
         fft_tmax=-1,
-        tstep=1,
+        fft_tstep=1,
         thres=0.01,
         axes=None,
     ):
         if axes is None:
             self.fig, self.axes = plt.subplots(1, 3, sharex=True, figsize=(7, 3))
-        names = [r"$m_x$", r"$m_y$", r"$m_z$"]
-        for i, ax in enumerate(self.axes):
+        for dset, ax in zip(["mx", "my", "mz"], self.axes):
             freqs, spec = self.llyr.calc.fft_tb(
-                "m", i, tmax=fft_tmax, tmin=fft_tmin, tstep=tstep
+                dset, tmax=fft_tmax, tmin=fft_tmin, tstep=fft_tstep
             )
             freqs, spec = self.llyr.calc.fminmax(freqs, fmin, fmax, spec=spec)
             ax.plot(freqs, spec)
@@ -39,7 +38,7 @@ class fft_tb(Base):
             ax.text(
                 0.9,
                 0.9,
-                names[i],
+                dset,
                 transform=ax.transAxes,
                 fontweight="bold",
                 ha="center",
@@ -49,7 +48,7 @@ class fft_tb(Base):
         self.axes[0].text(
             0,
             1.1,
-            self.llyr.aname,
+            self.llyr.sim_name,
             transform=self.axes[0].transAxes,
             fontweight="bold",
             ha="left",

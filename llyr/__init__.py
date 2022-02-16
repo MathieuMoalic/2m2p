@@ -1,4 +1,3 @@
-from typing import Optional, Tuple, Union, Dict
 import os
 from pathlib import Path
 import multiprocessing as mp
@@ -22,19 +21,19 @@ def op(path):
 
 
 class Group(zarr.hierarchy.Group):
-    def __init__(self, path: str) -> None:
-        zarr.hierarchy.Group.__init__(self, path)
-        self.apath = Path(path.path).absolute()
-        self.aname = self.apath.name.replace(self.apath.suffix, "")
+    def __init__(self, store) -> None:
+        zarr.hierarchy.Group.__init__(self, store)
+        self.abs_path = Path(store.path).absolute()
+        self.sim_name = self.abs_path.name.replace(self.abs_path.suffix, "")
         self.plot = Plot(self)
         self.calc = Calc(self)
         self.reload()
 
     def __repr__(self) -> str:
-        return f"Llyr('{self.aname}')"
+        return f"Llyr('{self.sim_name}')"
 
     def __str__(self) -> str:
-        return f"Llyr('{self.aname}')"
+        return f"Llyr('{self.sim_name}')"
 
     def reload(self):
         self._update_class_dict()

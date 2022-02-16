@@ -17,7 +17,7 @@ class modes(Base):
             arr = arr[:tmax]
             s = arr.shape
             arr = da.fft.rfft(arr, axis=0)  # pylint: disable=unexpected-keyword-arg
-            arr.to_zarr(self.llyr.apath, f"modes/{name}/arr")
+            arr.to_zarr(self.llyr.abs_path, f"modes/{name}/arr")
         freqs = np.fft.rfftfreq(s[0], self.llyr.dt) * 1e-9
         self.llyr.create_dataset(
             f"modes/{name}/freqs", data=freqs, chunks=False, compressor=False

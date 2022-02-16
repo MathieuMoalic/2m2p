@@ -24,7 +24,7 @@ class disp(Base):
         self.llyr.check_path(f"modes/{name}/arr", force)
         self.llyr.check_path(f"modes/{name}/freqs", force)
         self.llyr.check_path(f"modes/{name}/kvecs", force)
-        with h5py.File(self.llyr.apath, "a") as f:
+        with h5py.File(self.llyr.abs_path, "a") as f:
             arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
             arr = arr[(tslice, zslice, yslice, xslice, cslice)]  # slice
             s = arr.shape
@@ -46,7 +46,7 @@ class disp(Base):
             arr = da.fft.fftshift(arr, axes=(1, 2))
             arr = da.absolute(arr)  # from complex to real
             arr = da.sum(arr, axis=1)  # sum y
-            arr.to_hdf5(self.llyr.apath, f"disp/{name}/arr")
+            arr.to_hdf5(self.llyr.abs_path, f"disp/{name}/arr")
 
         freqs = np.fft.rfftfreq(s[0], self.llyr.dt)
         kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.llyr.dx)) * 1e-6

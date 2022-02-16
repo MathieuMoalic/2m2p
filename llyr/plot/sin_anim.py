@@ -23,7 +23,7 @@ class sin_anim(Base):
             fig, run, interval=1, frames=np.arange(1, arr.shape[0], dtype="int")
         )
         ani.save(
-            f"{self.llyr.aname}_{dset}_{f}.mp4",
+            f"{self.llyr.sim_name}_{dset}_{f}.mp4",
             writer="ffmpeg",
             fps=25,
             dpi=200,

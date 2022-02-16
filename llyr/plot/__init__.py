@@ -16,6 +16,7 @@ class Plot:
         self.fft_tb = fft_tb(llyr).plot
         self.imshow = imshow(llyr).plot
         self.modes = modes(llyr).plot
+        self.mode = modes(llyr).plot_one
         self.snapshot = snapshot(llyr).plot
         self.snapshot_png = snapshot_png(llyr).plot
         self.report = report(llyr).plot
