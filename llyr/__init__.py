@@ -1,14 +1,33 @@
 import os
 from pathlib import Path
-import multiprocessing as mp
-import glob
+from glob import glob
 
+import matplotlib.pyplot as plt
 import numpy as np
 import zarr
-import h5py
 
 from .plot import Plot
 from .calc import Calc
+
+# from ._interactive import iplot
+from ._utils import (
+    h5_to_zarr,
+    load_ovf,
+    merge_table,
+    get_ovf_parms,
+    out_to_zarr,
+    hsl2rgb,
+)
+
+__all__ = [
+    "h5_to_zarr",
+    "load_ovf",
+    "merge_table",
+    "get_ovf_parms",
+    "out_to_zarr",
+    "hsl2rgb",
+    "iplot",
+]
 
 
 def op(path):
@@ -88,61 +107,72 @@ class Group(zarr.hierarchy.Group):
             )
 
 
-def merge_table(m):
-    for d in ["m", "B_ext"]:
-        if f"table/{d}x" in m:
-            x = m[f"table/{d}x"]
-            y = m[f"table/{d}y"]
-            z = m[f"table/{d}z"]
-            m.create_dataset(f"table/{d}", data=np.array([x, y, z]).T)
-            del m[f"table/{d}x"]
-            del m[f"table/{d}y"]
-            del m[f"table/{d}z"]
+def iplot(path, label="", xstep=2, c="mx"):
+    def plot_mode(m, ax, f):
+        mode = m.get_mode("m", f, 2)[0]
+        mode = np.tile(mode, (2, 2))
+        extent = [0, mode.shape[1] * m.dx * 1e9, 0, mode.shape[0] * m.dy * 1e9]
+        ax.imshow(
+            np.angle(mode),
+            aspect="equal",
+            cmap="hsv",
+            vmin=-np.pi,
+            vmax=np.pi,
+            extent=extent,
+            alpha=np.abs(mode) / np.abs(mode).max(),
+        )
 
+    paths = sorted(
+        glob(f"{path}/*.zarr"),
+        key=lambda x: int(x.split("/")[-1].replace(".zarr", "")),
+    )
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(6, 3), dpi=200)
+    names = []
+    arr = []
+    for p in paths:
+        m = op(p)
+        names.append(m.name)
+        x, y = m.calc.fft_tb(c, tmax=500, normalize=True)
+        arr.append(y)
+    arr = np.array(arr).T
 
-def h5_to_zarr(p, remove=False):
-    source = h5py.File(p, "r")
-    dest = zarr.open(p.replace(".h5", ".zarr"), mode="a")
-    print("Copying:", p)
-    zarr.copy_all(source, dest)
-    print("Merging tables ..")
-    merge_table(dest)
-    source.close()
-    print("Removing ...")
-    if remove:
-        os.remove(p)
-    print("Done")
+    xlabels = np.array([int(p.split("/")[-1].replace(".zarr", "")) for p in paths])
+    lstep = xlabels[1] - xlabels[0]
+    ax1.imshow(
+        arr,
+        aspect="auto",
+        origin="lower",
+        interpolation="nearest",
+        extent=[xlabels[0], xlabels[-1] + lstep, x.min(), x.max()],
+        cmap="Reds",
+    )
+    ax1.set_ylim(6, 15)
+    ax1.set_xticks(xlabels[::xstep] + lstep / 2)
+    ax1.set_xticklabels(xlabels[::xstep])
 
+    ax1.set_xlabel(label)
+    ax1.grid(color="gray", linestyle="--", linewidth=0.5)
+    ax1.set_ylabel("Frequency (GHz)")
+    hline = ax1.axhline(x.max())
+    vline = ax1.axvline(xlabels[0])
 
-def load_ovf(path: str):
-    with open(path, "rb") as f:
-        dims = np.array([0, 0, 0, 0])
+    def onclick(event):
+        x = int(event.xdata)
+        new_x = xlabels[0]
         while True:
-            line = f.readline().strip().decode("ASCII")
-            if "valuedim" in line:
-                dims[3] = int(line.split(" ")[-1])
-            if "xnodes" in line:
-                dims[2] = int(line.split(" ")[-1])
-            if "ynodes" in line:
-                dims[1] = int(line.split(" ")[-1])
-            if "znodes" in line:
-                dims[0] = int(line.split(" ")[-1])
-            if "Begin: Data" in line:
+            if new_x + lstep > x:
                 break
-        count = int(dims[0] * dims[1] * dims[2] * dims[3] + 1)
-        arr = np.fromfile(f, "<f4", count=count)[1:].reshape(dims)
-    return arr
+            else:
+                new_x += lstep
+        x = new_x
+        ax2.cla()
+        ax2.set_title(f"{x} nm  -  {event.ydata:.2f} GHz")
+        m = op(f"{path}/{x}.zarr")
+        plot_mode(m, ax2, event.ydata)
 
+        vline.set_data([new_x + lstep / 2, new_x + lstep / 2], [0, 1])
+        hline.set_data([0, 1], [event.ydata, event.ydata])
+        fig.tight_layout()
 
-def ovf_to_zarr(path, prefixes=("m", "stable")):
-    m = zarr.open(path.replace(".out", ".zarr"), "w")
-
-    for prefix in prefixes:
-        print(f"{path}/{prefix}*.ovf")
-        paths = sorted(glob.glob(f"{path}/{prefix}*.ovf"))
-        if len(paths) > 0:
-            s = load_ovf(paths[0]).shape
-            dset = m.create_dataset(prefix, shape=((len(paths),) + s), dtype=np.float32)
-            pool = mp.Pool(processes=int(mp.cpu_count() - 1))
-            for i, d in enumerate(pool.imap(load_ovf, paths)):
-                dset[i] = d
+    fig.tight_layout(h_pad=0.4, w_pad=0.2)
+    fig.canvas.mpl_connect("button_press_event", onclick)

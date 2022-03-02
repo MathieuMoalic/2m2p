@@ -49,6 +49,27 @@ def hsl2rgb(hsl):
     return rgb
 
 
+def hsl2rgb2(hsl):
+    h = hsl[..., 0] * 360
+    s = hsl[..., 1]
+    l = hsl[..., 2]
+
+    rgb = np.zeros_like(hsl)
+    for i, n in enumerate([0, 8, 4]):
+        k = (n + h / 30) % 12
+        a = s * np.minimum(l, 1 - l)
+        k = np.minimum(k - 3, 9 - k)
+        k = np.clip(k, -1, 1)
+        rgb[..., i] = l - a * k
+    rgb = np.clip(rgb, 0, 1)
+    for i in range(rgb.shape[0]):
+        for j in range(rgb.shape[1]):
+            for k in range(rgb.shape[2]):
+                if all(rgb[i, j, k] == 0):
+                    rgb[i, j, k] = np.array([1, 1, 1])
+    return rgb
+
+
 def clean_glob_names(ps):
     ps = sorted([x.split("/")[-1].split(".")[0] for x in ps])
     pre_sub = ""

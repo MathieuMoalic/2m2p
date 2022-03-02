@@ -83,10 +83,17 @@ class modes(Base):
         return self
 
     def plot_one(
-        self, ax: plt.Axes, dset: str, f: float, comp: int, color: str, z: int = 0
+        self,
+        ax: plt.Axes,
+        dset: str,
+        f: float,
+        comp: int,
+        color: str,
+        z: int = 0,
+        repeat: int = 1,
     ):
         mode = self.llyr.get_mode(dset, f, comp)[z]
-
+        mode = np.tile(mode, (repeat, repeat))
         extent = [
             0,
             mode.shape[1] * self.llyr.dx * 1e9,

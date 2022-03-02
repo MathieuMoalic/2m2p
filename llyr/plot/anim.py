@@ -13,20 +13,19 @@ class anim(Base):
         dset: str = "m",
         f: float = 9,
         z: int = 0,
-        t: int = 25,
         periods: int = 1,
         save_path: str = None,
+        repeat: int = 1,
     ):
-        # f = 11.76
-        arr = self.llyr.calc.anim(dset, f, periods=periods)
-
+        arr = self.llyr.calc.anim(dset, f, periods=periods)[:, z]
+        arr = np.tile(arr, (1, repeat, repeat, 1))
         arr = np.ma.masked_equal(arr, 0)
-        u, v, z = arr[..., 0], arr[..., 1], arr[..., 2]
-        alphas = -np.abs(z) + 1
+        u, v, w = arr[..., 0], arr[..., 1], arr[..., 2]
+        alphas = -np.abs(w) + 1
         hsl = np.ones((u.shape[0], u.shape[1], u.shape[2], 3))
         hsl[..., 0] = 0  # np.angle(u + 1j * v) / np.pi / 2  # normalization
-        hsl[..., 1] = np.sqrt(u**2 + v**2 + z**2)
-        hsl[..., 2] = (z + 1) / 2
+        hsl[..., 1] = np.sqrt(u**2 + v**2 + w**2)
+        hsl[..., 2] = (w + 1) / 2
         rgb = hsl2rgb(hsl)
         stepx = max(int(u.shape[2] / 60), 1)
         stepy = max(int(u.shape[1] / 60), 1)
@@ -36,6 +35,7 @@ class anim(Base):
             np.arange(0, u.shape[1], stepy) * self.llyr.dy * 1e9,
         )
         antidots = np.ma.masked_not_equal(self.llyr["m"][0, 0, :, :, 2], 0)
+        antidots = np.tile(antidots, (repeat, repeat))
         extent = [
             0,
             arr.shape[2] * self.llyr.dx * 1e9,
