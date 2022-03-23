@@ -133,9 +133,7 @@ def get_cmaps():
     return cmaps, handles
 
 
-def iplot(path, xstep=2, comps=None, fmin=0, fmax=20):
-    if comps is None:
-        comps = [0, 2]
+def iplot(path, xstep=2, comps=[0, 2], fmin=0, fmax=20, normalize=False):
     paths = sorted(
         glob(f"{path}/*.zarr"), key=lambda x: int(x.split("/")[-1].replace(".zarr", ""))
     )
@@ -227,8 +225,11 @@ def iplot(path, xstep=2, comps=None, fmin=0, fmax=20):
     def onclick(event):
         x = int(event.xdata)
         new_x = xlabels[0]
-        while new_x + lstep > x:
-            new_x += lstep
+        while True:
+            if new_x + lstep > x:
+                break
+            else:
+                new_x += lstep
         x = new_x
         m = op(f"{path}/{x:0>3}.zarr")
         plot_mode(m, event.ydata)
