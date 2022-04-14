@@ -11,6 +11,7 @@ from .anim import anim
 class Calc:
     def __init__(self, llyr):
         self.disp = disp(llyr).calc
+        self.disp_da = disp(llyr).calc_da
         self.fft_tb = fft_tb(llyr).calc
         self.fft = fft(llyr).calc
         self.modes = modes(llyr).calc

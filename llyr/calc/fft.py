@@ -1,8 +1,6 @@
 from typing import Optional
 
 import numpy as np
-import dask.array as da
-import h5py
 
 from ..base import Base
 
@@ -10,38 +8,43 @@ from ..base import Base
 class fft(Base):
     def calc(
         self,
-        dset: str,
+        dset_name: str,
         name: Optional[str] = None,
         force: Optional[bool] = False,
         tslice=slice(None),
         zslice=slice(None),
         yslice=slice(None),
         xslice=slice(None),
-        cslice=2,
+        cslice=slice(None),
+        zero=None,
     ):
         if name is None:
-            name = dset
-        self.llyr.check_path(f"fft/{name}/arr", force)
-        self.llyr.check_path(f"fft/{name}/freqs", force)
-        with h5py.File(self.llyr.abs_path, "r") as f:
-            arr = da.from_array(f[dset], chunks=(None, None, 16, None, None))
-            arr = arr[(tslice, zslice, yslice, xslice, cslice)]
-            s = arr.shape
-            arr = arr.sum(axis=1)  # sum all z
-            arr = da.subtract(arr, arr[0])
-            arr = da.subtract(arr, da.average(arr, axis=0)[None, :])
-            arr = da.multiply(arr, np.hanning(arr.shape[0])[:, None, None])
-            arr = da.swapaxes(arr, 0, -1)
-            arr = da.reshape(
-                arr, (arr.shape[0] * arr.shape[1], arr.shape[2])
-            )  # flatten all the cells
-            arr = da.fft.rfft(arr)
-            arr = da.absolute(arr)
-            arr = da.sum(arr, axis=0)
-            # da.to_zarr(arr, f"fft/{name}/arr")
-            arr.to_zarr(self.llyr.abs_path, f"fft/{name}/arr")
+            name = dset_name
+        if force:
+            self.llyr.rm(f"fft/{name}")
+        if any(f"fft/{name}/{d}" in self.llyr for d in ["freqs", "fft"]):
+            raise NameError(
+                f"The dataset:'fft/{name}' already exists, you can use 'force=True'"
+            )
+        dset = self.llyr[dset_name]
+        if tslice.stop is None or tslice.stop > dset.shape[0]:
+            tslice = slice(dset.shape[0])
+        arr = dset[(tslice, zslice, yslice, xslice, cslice)]
+        if zero is None:
+            arr -= arr[0]
+        else:
+            arr -= zero
+        arr -= np.average(arr)
+        arr *= np.hanning(arr.shape[0])[:, None, None, None, None]
+        arr = np.fft.rfft(arr, axis=0)
+        arr = np.abs(arr)
+        arr = np.sum(arr, axis=(1, 2, 3))
+        self.llyr.create_dataset(
+            f"fft/{name}/fft", data=arr, chunks=False, compressor=False
+        )
 
-        freqs = np.fft.rfftfreq(s[0], self.llyr.dt)
+        ts = dset.attrs["t"][tslice]
+        freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts))
         self.llyr.create_dataset(
             f"fft/{name}/freqs", data=freqs, chunks=False, compressor=False
         )
