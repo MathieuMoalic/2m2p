@@ -17,5 +17,6 @@ class Calc:
         self.modes = modes(llyr).calc
         self.sk_number = sk_number(llyr).calc
         self.peaks = peaks(llyr).calc
+        self.npeaks = peaks(llyr).npeaks
         self.fminmax = fminmax(llyr).calc
         self.anim = anim(llyr).calc
