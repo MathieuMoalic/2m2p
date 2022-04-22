@@ -240,3 +240,57 @@ def out_to_zarr(out_path: str, zarr_path: str, tmax=None):
         pool = mp.Pool(processes=int(mp.cpu_count() - 1))
         for i, d in enumerate(pool.imap(load_ovf, ovfs)):
             zarr_dset[i] = d
+
+
+def get_b(x):
+    return float(x.split("_")[-1].replace(".ovf", ""))
+
+
+def out_to_zarr2(path: str):
+    m = zarr.open(f"{path}.zarr")
+    ovfs = sorted(glob(f"{path}/m*.ovf"), key=get_b, reverse=False)
+    parms = get_ovf_parms(ovfs[0])
+    dset_shape = (len(ovfs), parms["Nz"], parms["Ny"], parms["Nx"], parms["comp"])
+    zarr_dset = m.create_dataset(
+        "m_down",
+        shape=dset_shape,
+        chunks=(5, parms["Nz"], 64, 64, parms["comp"]),
+        dtype=np.float32,
+        compressor=Blosc(cname="zstd", clevel=1, shuffle=Blosc.SHUFFLE),
+        overwrite=True,
+    )
+    pool = mp.Pool(processes=int(mp.cpu_count() - 1))
+    for i, d in enumerate(pool.imap(load_ovf, ovfs)):
+        zarr_dset[i] = d
+    zarr_dset.attrs["B_ext"] = [get_b(ovf) for ovf in ovfs]
+
+
+def rechunk():
+    import rechunker
+    import zarr
+    import shutil
+
+    # paths = glob("./ADL_paper/*/*.zarr")
+    paths = ["./ADL_paper/ref.zarr"]
+    intermediate = "/tmp/intermediate.zarr"
+    for p in paths:
+        print(p)
+        source = zarr.open(p).m
+        # source = zarr.open(p).modes.m.arr
+        if source.shape == (501, 1, 512, 512, 3):
+            # if source.shape == (251, 1, 512, 512, 3):
+            target = f"{p}/m3"
+            # target = f"{p}/modes/m/arr2"
+            rechunked = rechunker.rechunk(
+                source,
+                target_chunks=(1, 1, 64, 64, 3),
+                max_mem="40GB",
+                target_store=target,
+                temp_store=intermediate,
+            )
+            rechunked.execute()
+            # shutil.rmtree(f"{p}/modes/m/arr")
+            # zarr.open(p).move("m2","m")
+            # zarr.open(p).move("modes/m/arr2","modes/m/arr")
+        else:
+            print("Wrong shape ?")

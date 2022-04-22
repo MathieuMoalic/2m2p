@@ -13,7 +13,7 @@ class snapshot(Base):
             fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         else:
             fig = ax.figure
-        arr = self.llyr[dset][t, z, :, :150, :]
+        arr = self.llyr[dset][t, z, :, :, :]
         arr = np.ma.masked_equal(arr, 0)
         u = arr[:, :, 0]
         v = arr[:, :, 1]
@@ -43,7 +43,6 @@ class snapshot(Base):
             scale_units="xy",
             scale=scale,
         )
-
         ax.imshow(
             rgb,
             interpolation="None",
@@ -53,9 +52,9 @@ class snapshot(Base):
             vmax=np.pi,
             extent=[
                 0,
-                arr.shape[1] * self.llyr.dx * 1e9,
+                rgb.shape[1] * self.llyr.dx * 1e9,
                 0,
-                arr.shape[0] * self.llyr.dy * 1e9,
+                rgb.shape[0] * self.llyr.dy * 1e9,
             ],
         )
         ax.imshow(
@@ -72,8 +71,7 @@ class snapshot(Base):
         )
         ax.set(title=self.llyr.sim_name, xlabel="x (nm)", ylabel="y (nm)")
         fig.tight_layout()
-        self.add_radial_phase_colormap(ax)
-        return fig
+        # self.add_radial_phase_colormap(ax)
 
     def add_radial_phase_colormap(self, ax, rec=None):
         def func1(hsl):

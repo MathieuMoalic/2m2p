@@ -38,7 +38,7 @@ class fft(Base):
         arr *= np.hanning(arr.shape[0])[:, None, None, None, None]
         arr = np.fft.rfft(arr, axis=0)
         arr = np.abs(arr)
-        arr = np.sum(arr, axis=(1, 2, 3))
+        arr = np.max(arr, axis=(1, 2, 3))
         self.llyr.create_dataset(
             f"fft/{name}/fft", data=arr, chunks=False, compressor=False
         )

@@ -5,6 +5,7 @@ import shutil
 
 import matplotlib.pyplot as plt
 import matplotlib as mpl
+from matplotlib.widgets import Button
 import numpy as np
 import zarr
 
@@ -150,7 +151,7 @@ def iplot(path, xstep=2, comps=None, fmin=0, fmax=20):
         arr = []
         for p in paths:
             m = op(p)
-            arr.append(m.fft[2:, comp])
+            arr.append(m.fft.m.fft[2:, comp])
         arr = np.array(arr).T
         ts = m.m.attrs["t"]
         x = np.fft.rfftfreq(m.m.shape[0], (ts[-1] - ts[0]) / len(ts))[2:] * 1e-9
@@ -159,19 +160,19 @@ def iplot(path, xstep=2, comps=None, fmin=0, fmax=20):
             aspect="auto",
             origin="lower",
             interpolation="nearest",
-            extent=[xlabels[0], xlabels[-1] + lstep, x.min(), x.max()],
+            norm=mpl.colors.LogNorm(),
+            extent=[xlabels[0] - lstep / 2, xlabels[-1] + lstep / 2, x.min(), x.max()],
             cmap=cmaps[comp],
         )
     ax1.legend(handles=[handles[i] for i in comps], fontsize=8)
     ax1.set_ylim(fmin, fmax)
-    ax1.set_xticks(xlabels[::xstep] + lstep / 2)
-    ax1.set_xticklabels(xlabels[::xstep])
+    ax1.set_xticks(xlabels[::xstep])
     ax1.set_title(path)
     ax1.grid(color="gray", linestyle="--", linewidth=0.5)
     ax1.set_ylabel("Frequency (GHz)")
-    hline = ax1.axhline(x.max())
+    hline = ax1.axhline((x.max() - x.min()) / 2)
     vline = ax1.axvline(xlabels[0])
-
+    q = ""
     axes = [
         fig.add_subplot(gs[i : i + 1, j : j + 1]) for i in [0, 1, 2] for j in [3, 4, 5]
     ]
@@ -223,24 +224,23 @@ def iplot(path, xstep=2, comps=None, fmin=0, fmax=20):
             )
             axes[2, i].set_title(f"amp = {np.sum(np.abs(arr)):.2e}", fontsize=8)
 
-    #     plot_mode(op(f"{path}/041.zarr"),10)
     def onclick(event):
-        x = int(event.xdata)
-        new_x = xlabels[0]
-        while new_x + lstep > x:
-            new_x += lstep
-        x = new_x
-        m = op(f"{path}/{x:0>3}.zarr")
-        plot_mode(m, event.ydata)
+        x = xlabels[np.abs(xlabels - event.xdata).argmin()]
+        plot_mode(op(f"{path}/{x:0>3}.zarr"), event.ydata)
         axes[0, 1].text(
             0.5,
             1.3,
-            f" {x} nm  -  {event.ydata:.2f} GHz",
+            f"{q} - {x} nm -  {event.ydata:.2f} GHz",
             va="center",
             ha="center",
             transform=axes[0, 1].transAxes,
         )
-        vline.set_data([new_x + lstep / 2, new_x + lstep / 2], [0, 1])
+        vline.set_data([x, x], [0, 1])
         hline.set_data([0, 1], [event.ydata, event.ydata])
 
+    # def ch_color(_):
+    #     q = "hi"
+
+    # btn = Button(plt.axes([0.81, 0.000001, 0.1, 0.075]), "Peak Snap")
+    # btn.on_clicked(ch_color)
     fig.canvas.mpl_connect("button_press_event", onclick)
