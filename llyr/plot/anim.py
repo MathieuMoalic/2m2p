@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-import matplotlib as mpl
+from matplotlib.animation import FuncAnimation
 
 from .._utils import hsl2rgb
 
@@ -16,6 +16,7 @@ class anim(Base):
         periods: int = 1,
         save_path: str = None,
         repeat: int = 1,
+        figax=None,
     ):
         arr = self.llyr.calc.anim(dset, f, periods=periods)[:, z]
         arr = np.tile(arr, (1, repeat, repeat, 1))
@@ -43,7 +44,10 @@ class anim(Base):
             arr.shape[1] * self.llyr.dy * 1e9,
         ]
         t = 0
-        fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
+        if figax is None:
+            fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
+        else:
+            fig, ax = figax
         Q = ax.quiver(
             x,
             y,
@@ -75,9 +79,11 @@ class anim(Base):
             Q.set_alpha(alphas[t, ::stepy, ::stepx])
             return ax
 
-        ani = mpl.animation.FuncAnimation(
+        ani = FuncAnimation(
             fig, run, interval=1, frames=np.arange(1, arr.shape[0], dtype="int")
         )
+        # plt.show()
+        # return ani
         if save_path is None:
             anim_save_path = f"{self.llyr.abs_path}_{f}.gif"
         else:

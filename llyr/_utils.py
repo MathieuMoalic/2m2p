@@ -294,3 +294,21 @@ def rechunk():
             # zarr.open(p).move("modes/m/arr2","modes/m/arr")
         else:
             print("Wrong shape ?")
+
+
+def get_cmaps():
+    cmaps = []
+    for a, b, c in zip((1, 0, 0), (0, 1, 0), (0, 0, 1)):
+        N = 256
+        vals = np.ones((N, 4))
+        vals[:, 0] = np.linspace(1, a, N)
+        vals[:, 1] = np.linspace(1, b, N)
+        vals[:, 2] = np.linspace(1, c, N)
+        vals[:, 3] = np.linspace(0, 1, N)
+        cmaps.append(mpl.colors.ListedColormap(vals))
+    handles = [
+        mpl.patches.Patch(color="red", label="mx"),
+        mpl.patches.Patch(color="green", label="my"),
+        mpl.patches.Patch(color="blue", label="mz"),
+    ]
+    return cmaps, handles
