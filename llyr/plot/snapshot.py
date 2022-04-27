@@ -8,12 +8,13 @@ from ..base import Base
 
 
 class snapshot(Base):
-    def plot(self, dset: str = "m", z: int = 0, t: int = -1, ax=None):
+    def plot(self, dset: str = "m", z: int = 0, t: int = -1, ax=None, repeat=1):
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         else:
             fig = ax.figure
         arr = self.llyr[dset][t, z, :, :, :]
+        arr = np.tile(arr, (repeat, repeat, 1))
         arr = np.ma.masked_equal(arr, 0)
         u = arr[:, :, 0]
         v = arr[:, :, 1]
@@ -33,6 +34,7 @@ class snapshot(Base):
             np.arange(0, u.shape[0], stepy) * self.llyr.dy * 1e9,
         )
         antidots = np.ma.masked_not_equal(self.llyr[dset][0, 0, :, :, 2], 0)
+        antidots = np.tile(antidots, (repeat, repeat))
         ax.quiver(
             x,
             y,
@@ -71,7 +73,8 @@ class snapshot(Base):
         )
         ax.set(title=self.llyr.sim_name, xlabel="x (nm)", ylabel="y (nm)")
         fig.tight_layout()
-        # self.add_radial_phase_colormap(ax)
+        self.add_radial_phase_colormap(ax)
+        return ax
 
     def add_radial_phase_colormap(self, ax, rec=None):
         def func1(hsl):

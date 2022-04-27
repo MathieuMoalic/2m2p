@@ -15,6 +15,7 @@ class Calc:
         self.fft_tb = fft_tb(llyr).calc
         self.fft = fft(llyr).calc
         self.modes = modes(llyr).calc
+        self.modes2 = modes(llyr).calc2
         self.sk_number = sk_number(llyr).calc
         self.peaks = peaks(llyr).calc
         self.npeaks = peaks(llyr).npeaks

@@ -11,27 +11,51 @@ class modes(Base):
         if name is None:
             name = dset
         with ProgressBar():
-            self.llyr[dset].rm(f"modes/{dset}")
-            self.llyr[dset].rm(f"fft/{dset}")
+            self.llyr.rm(f"modes/{name}")
+            # self.llyr.rm(f"fft/{dset}")
             x1 = da.from_zarr(self.llyr[dset])
+            x1 = x1[:tmax]
             x1 = x1.rechunk((x1.shape[0], 1, 64, 64, x1.shape[-1]))
-            d2 = self.llyr.create_dataset(
-                f"modes/{dset}/arr",
-                shape=x1.shape,
-                chunks=(1, x1.shape[1], x1.shape[2], x1.shape[3], x1.shape[4]),
+            x2 = da.fft.rfft(x1, axis=0)
+            d1 = self.llyr.create_dataset(
+                f"modes/{name}/arr",
+                shape=x2.shape,
+                chunks=(1, None, None, None, None),
                 dtype=np.complex128,
             )
-            da.to_zarr(da.fft.rfft(x1, axis=0), d2)
+            da.to_zarr(x2, d1)
             x1 -= da.average(x1)
             x1 = x1 * np.hanning(x1.shape[0])[:, None, None, None, None]
             x1 = np.fft.rfft(x1, axis=0)
             x1 = da.absolute(x1)
             x1 = da.max(x1, axis=(1, 2, 3))
             d2 = self.llyr.create_dataset(
-                f"fft/{dset}/max", shape=x1.shape, chunks=None, dtype=np.float32
+                f"fft/{name}/max", shape=x1.shape, chunks=None, dtype=np.float32
             )
             da.to_zarr(x1, d2)
         ts = self.llyr.m.attrs["t"][:]
-        freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts))
-        self.llyr.create_dataset(f"fft/{dset}/freqs", data=freqs, chunks=False)
-        self.llyr.create_dataset(f"modes/{dset}/freqs", data=freqs, chunks=False)
+        freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts)) * 1e-9
+        self.llyr.create_dataset(f"fft/{name}/freqs", data=freqs, chunks=False)
+        self.llyr.create_dataset(f"modes/{name}/freqs", data=freqs, chunks=False)
+
+    def calc2(self, dset: str, force=False, name=None, tmax=None):
+        if name is None:
+            name = dset
+        self.llyr.check_path(f"modes/{name}/freqs", force)
+        self.llyr.check_path(f"modes/{name}/arr", force)
+        ts = self.llyr[dset].attrs["t"][:]
+        freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts)) * 1e-9
+        self.llyr.create_dataset(
+            f"modes/{name}/freqs", data=freqs, chunks=False, compressor=False
+        )
+        with ProgressBar():
+            arr = da.from_array(self.llyr[dset], chunks=(None, None, 16, None, None))
+            arr = arr[:tmax]
+            arr = da.fft.rfft(arr, axis=0)  # pylint: disable=unexpected-keyword-arg
+            d = self.llyr.create_dataset(
+                f"modes/{name}/arr",
+                shape=arr.shape,
+                chunks=(1, None, None, None, None),
+                dtype=np.complex128,
+            )
+            da.to_zarr(arr, d)

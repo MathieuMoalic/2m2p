@@ -1,4 +1,5 @@
 from glob import glob
+from timeit import repeat
 import matplotlib.pyplot as plt
 import matplotlib as mpl
 from matplotlib.widgets import Button
@@ -9,7 +10,7 @@ import peakutils
 from ._utils import get_cmaps
 
 
-def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20):
+def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
     if comps is None:
         comps = [0, 2]
     paths = sorted(
@@ -17,10 +18,11 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20):
     )
     xlabels = np.array([int(p.split("/")[-1].replace(".zarr", "")) for p in paths])
     lstep = xlabels[1] - xlabels[0]
-    fig = plt.figure(figsize=(8, 5), dpi=150)
+    fig = plt.figure(figsize=(8, 4), dpi=150)
     gs = fig.add_gridspec(3, 6)
     ax1 = fig.add_subplot(gs[:, :3])
-    gs.update(left=0.1, right=0.9, top=0.9, bottom=0.1, wspace=0.1, hspace=0.1)
+    ax1.tick_params(axis="x", bottom=False, top=True, labelbottom=False, labeltop=True)
+    gs.update(left=0.08, right=0.99, top=0.9, bottom=0.1, wspace=0.1, hspace=0.1)
     cmaps, handles = get_cmaps()
     for comp in comps:
         arr = []
@@ -66,14 +68,14 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20):
 
     s = state()
 
-    ttext = ax1.text(
-        0.7,
-        0.08,
-        f"Peak threshold = {s.val*100:.2f}%",
-        transform=fig.transFigure,
-        va="center",
-        ha="center",
-    )
+    # ttext = ax1.text(
+    #     0.7,
+    #     0.08,
+    #     f"Peak threshold = {s.val*100:.2f}%",
+    #     transform=fig.transFigure,
+    #     va="center",
+    #     ha="center",
+    # )
 
     def plot_mode(m, f):
         for i in range(3):
@@ -114,7 +116,7 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20):
                 interpolation="None",
                 aspect="equal",
             )
-            axes[2, i].set_title(f"amp = {np.sum(np.abs(arr)):.2e}", fontsize=8)
+            # axes[2, i].set_title(f"amp = {np.sum(np.abs(arr)):.2e}", fontsize=8)
 
     def onclick(event):
         if event.inaxes == ax1:
@@ -125,7 +127,7 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20):
             m = op(f"{path}/{x:0>3}.zarr")
             if event.button.name == "RIGHT":
                 fft = m.fft.m.max[2:, 0]
-                freqs = m.fft.m.freqs[2:] * 1e-9
+                freqs = m.fft.m.freqs[2:]  # * 1e-9
                 peaks = freqs[peakutils.indexes(fft, thres=s.val, min_dist=5)]
                 y = peaks[np.abs(peaks - event.ydata).argmin()]
             else:
@@ -136,7 +138,7 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20):
             axes[0, 1].text(
                 0.5,
                 1.3,
-                f"{x} nm -  {y:.2f} GHz",
+                f"{x} {unit} -  {y:.2f} GHz",
                 va="center",
                 ha="center",
                 transform=axes[0, 1].transAxes,
@@ -147,14 +149,24 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20):
     def onpress(event):
         if event.key == "-":
             s.val *= 0.8
-            ttext.set_text(f"Peak threshold = {s.val*100:.2f}%")
+            # ttext.set_text(f"Peak threshold = {s.val*100:.2f}%")
         if event.key == "=":
             s.val *= 1.2
-            ttext.set_text(f"Peak threshold = {s.val*100:.2f}%")
+            # ttext.set_text(f"Peak threshold = {s.val*100:.2f}%")
         if event.key == "g":
-            ax1.set_title(f"{path} - Saving gif . . . ")
-            s.m.plot.anim("m", f=s.f, save_path=f"figs/{m.sim_name}_{s.f:.2f}.gif")
-            ax1.set_title(f"{path} -  Gif saved as figs/{m.sim_name}_{s.f:.2f}.gif ")
+            # ax1.set_title(f"{path} - Saving gif . . . ")
+            s.m.plot.anim(
+                "m",
+                f=s.f,
+                save_path=f"figs/report/gifs/{s.m.sim_name}_{s.f:.2f}.mp4",
+                repeat=2,
+            )
+            fig.savefig(
+                f"figs/report/gifs/{s.m.sim_name}_{s.f:.2f}.png", transparent=True
+            )
+            # ax1.set_title(f"{path} -  Gif saved as figs/{m.sim_name}_{s.f:.2f}.gif ")
 
     fig.canvas.mpl_connect("button_press_event", onclick)
     fig.canvas.mpl_connect("key_press_event", onpress)
+
+    return fig, ax1

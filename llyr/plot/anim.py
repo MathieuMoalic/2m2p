@@ -45,7 +45,11 @@ class anim(Base):
         ]
         t = 0
         if figax is None:
-            fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
+            fig = plt.figure(figsize=(3, 3), dpi=150)
+            gs = fig.add_gridspec(1, 1)
+            ax = fig.add_subplot(gs[:])
+            gs.update(left=0, right=1, top=1, bottom=0)
+            # fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         else:
             fig, ax = figax
         Q = ax.quiver(
@@ -70,7 +74,8 @@ class anim(Base):
         ax.imshow(
             antidots, interpolation="None", origin="lower", cmap="Set1_r", extent=extent
         )
-        ax.set(xlabel="x (nm)", ylabel="y (nm)", title=f"{f:.2f} GHz")
+        # ax.set(xlabel="x (nm)", ylabel="y (nm)", title=f"{f:.2f} GHz")
+        ax.set(xticks=[], yticks=[])
         fig.tight_layout()
 
         def run(t):
@@ -85,14 +90,15 @@ class anim(Base):
         # plt.show()
         # return ani
         if save_path is None:
-            anim_save_path = f"{self.llyr.abs_path}_{f}.gif"
+            anim_save_path = f"{self.llyr.abs_path}_{f}.mp4"
         else:
             anim_save_path = save_path
         ani.save(
             anim_save_path,
             writer="ffmpeg",
             fps=25,
-            dpi=300,
+            dpi=150,
+            # savefig_kwargs={"transparent": True},
             # extra_args=["-vcodec", "h264", "-pix_fmt", "yuv420p"],
         )
         # print(f"Saved at: {anim_save_path}")
