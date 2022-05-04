@@ -22,7 +22,7 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
     gs = fig.add_gridspec(3, 6)
     ax1 = fig.add_subplot(gs[:, :3])
     ax1.tick_params(axis="x", bottom=False, top=True, labelbottom=False, labeltop=True)
-    gs.update(left=0.08, right=0.99, top=0.9, bottom=0.1, wspace=0.1, hspace=0.1)
+    gs.update(left=0.08, right=0.99, top=0.88, bottom=0.01, wspace=0.1, hspace=0.1)
     cmaps, handles = get_cmaps()
     for comp in comps:
         arr = []
@@ -158,12 +158,12 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
             s.m.plot.anim(
                 "m",
                 f=s.f,
-                save_path=f"figs/report/gifs/{s.m.sim_name}_{s.f:.2f}.mp4",
+                save_path=f"figs/gifs2/{s.m.sim_name}_{s.f:.2f}.mp4",
                 repeat=2,
             )
-            fig.savefig(
-                f"figs/report/gifs/{s.m.sim_name}_{s.f:.2f}.png", transparent=True
-            )
+            # fig.savefig(
+            #     f"figs/report/gifs/{s.m.sim_name}_{s.f:.2f}.png", transparent=True
+            # )
             # ax1.set_title(f"{path} -  Gif saved as figs/{m.sim_name}_{s.f:.2f}.gif ")
 
     fig.canvas.mpl_connect("button_press_event", onclick)
