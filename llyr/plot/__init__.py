@@ -17,6 +17,7 @@ class Plot:
         self.imshow = imshow(llyr).plot
         self.modes = modes(llyr).plot
         self.mode = modes(llyr).plot_one
+        self.mode_v2 = modes(llyr).plot_one_v2
         self.snapshot = snapshot(llyr).plot
         self.snapshot_png = snapshot_png(llyr).plot
         self.report = report(llyr).plot

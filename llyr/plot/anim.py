@@ -82,7 +82,6 @@ class anim(Base):
             ax.get_images()[0].set_data(rgb[t])
             Q.set_UVC(u[t, ::stepy, ::stepx], v[t, ::stepy, ::stepx])
             Q.set_alpha(alphas[t, ::stepy, ::stepx])
-            return ax
 
         ani = FuncAnimation(
             fig, run, interval=1, frames=np.arange(1, arr.shape[0], dtype="int")

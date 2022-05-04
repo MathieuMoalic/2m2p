@@ -8,12 +8,16 @@ from ..base import Base
 
 
 class snapshot(Base):
-    def plot(self, dset: str = "m", z: int = 0, t: int = -1, ax=None, repeat=1):
+    def plot(
+        self, dset: str = "m", z: int = 0, t: int = -1, ax=None, repeat=1, zero=None
+    ):
         if ax is None:
             fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         else:
             fig = ax.figure
         arr = self.llyr[dset][t, z, :, :, :]
+        if zero is not None:
+            arr -= self.llyr[dset][zero, z, :, :, :]
         arr = np.tile(arr, (repeat, repeat, 1))
         arr = np.ma.masked_equal(arr, 0)
         u = arr[:, :, 0]
@@ -108,8 +112,8 @@ class snapshot(Base):
         )
         cax.spines["polar"].set_visible(False)
         cax.set(yticks=[], xticks=[])
-        up_symbol = dict(x=0.5, y=0.5, name=r"$\bigotimes$")
-        down_symbol = dict(x=0.1, y=0.5, name=r"$\bigodot$")
+        up_symbol = dict(x=0.5, y=0.5, name=r"$\bigodot$")
+        down_symbol = dict(x=0.1, y=0.5, name=r"$\bigotimes$")
         for s in [up_symbol, down_symbol]:
             cax.text(
                 s["x"],

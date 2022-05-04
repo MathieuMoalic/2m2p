@@ -1,5 +1,8 @@
+from configparser import Interpolation
 import matplotlib.pyplot as plt
 import numpy as np
+
+from .._utils import hsl2rgb
 
 from ..base import Base
 
@@ -127,8 +130,61 @@ class modes(Base):
                 vmax=np.pi,
                 extent=extent,
                 alpha=np.abs(mode) / np.abs(mode).max(),
+                interpolation="None",
             )
         else:
             raise ValueError(
                 "Invalid 'color' argument, possible values are: ['amp','phase','phaseamp']"
             )
+
+    def plot_one_v2(self, ax, dset, f, comp, repeat=1, z=0):
+        arr = self.llyr.get_mode(dset, f)[z]
+        arr = np.real(arr)
+        arr = np.tile(arr, (repeat, repeat))
+        arr = np.ma.masked_equal(arr, 0)
+        u, v, w = arr[..., 0], arr[..., 1], arr[..., 2]
+        alphas = np.abs(w) / np.abs(w).max()
+        hsl = np.ones((u.shape[0], u.shape[1], 3))
+        hsl[..., 0] = np.angle(u + 1j * v) / np.pi / 2  # normalization
+        hsl[..., 1] = np.sqrt(u**2 + v**2 + w**2)
+        hsl[..., 2] = (w + 1) / 2
+        rgb = hsl2rgb(hsl)
+        stepx = max(int(u.shape[1] / 60), 1)
+        stepy = max(int(u.shape[0] / 60), 1)
+        scale = 1 / max(stepx, stepy) * 10
+        x, y = np.meshgrid(
+            np.arange(0, u.shape[1], stepx) * self.llyr.dx * 1e9,
+            np.arange(0, u.shape[0], stepy) * self.llyr.dy * 1e9,
+        )
+        # antidots = np.ma.masked_not_equal(self.llyr["m"][0, 0, :, :, 2], 0)
+        # antidots = np.tile(antidots, (repeat, repeat))
+        extent = [
+            0,
+            arr.shape[1] * self.llyr.dx * 1e9,
+            0,
+            arr.shape[0] * self.llyr.dy * 1e9,
+        ]
+        ax.quiver(
+            x,
+            y,
+            u[::stepy, ::stepx],
+            v[::stepy, ::stepx],
+            alpha=alphas[::stepy, ::stepx],
+            angles="xy",
+            scale_units="xy",
+            scale=scale,
+        )
+        ax.imshow(
+            rgb,
+            interpolation="None",
+            origin="lower",
+            cmap="hsv",
+            vmin=-np.pi,
+            vmax=np.pi,
+            extent=extent,
+            alpha=alphas,
+        )
+        # ax.imshow(
+        #     antidots, interpolation="None", origin="lower", cmap="Set1_r", extent=extent
+        # )
+        ax.set(xticks=[], yticks=[])
