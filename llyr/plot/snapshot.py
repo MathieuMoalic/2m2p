@@ -15,9 +15,9 @@ class snapshot(Base):
             fig, ax = plt.subplots(1, 1, figsize=(3, 3), dpi=200)
         else:
             fig = ax.figure
-        arr = self.llyr[dset][t, z, :, :, :]
+        arr = self.m[dset][t, z, :, :, :]
         if zero is not None:
-            arr -= self.llyr[dset][zero, z, :, :, :]
+            arr -= self.m[dset][zero, z, :, :, :]
         arr = np.tile(arr, (repeat, repeat, 1))
         arr = np.ma.masked_equal(arr, 0)
         u = arr[:, :, 0]
@@ -34,10 +34,10 @@ class snapshot(Base):
         stepy = max(int(u.shape[0] / 60), 1)
         scale = 1 / max(stepx, stepy)
         x, y = np.meshgrid(
-            np.arange(0, u.shape[1], stepx) * self.llyr.dx * 1e9,
-            np.arange(0, u.shape[0], stepy) * self.llyr.dy * 1e9,
+            np.arange(0, u.shape[1], stepx) * self.m.dx * 1e9,
+            np.arange(0, u.shape[0], stepy) * self.m.dy * 1e9,
         )
-        antidots = np.ma.masked_not_equal(self.llyr[dset][0, 0, :, :, 2], 0)
+        antidots = np.ma.masked_not_equal(self.m[dset][0, 0, :, :, 2], 0)
         antidots = np.tile(antidots, (repeat, repeat))
         ax.quiver(
             x,
@@ -58,9 +58,9 @@ class snapshot(Base):
             vmax=np.pi,
             extent=[
                 0,
-                rgb.shape[1] * self.llyr.dx * 1e9,
+                rgb.shape[1] * self.m.dx * 1e9,
                 0,
-                rgb.shape[0] * self.llyr.dy * 1e9,
+                rgb.shape[0] * self.m.dy * 1e9,
             ],
         )
         ax.imshow(
@@ -70,12 +70,12 @@ class snapshot(Base):
             cmap="Set1_r",
             extent=[
                 0,
-                arr.shape[1] * self.llyr.dx * 1e9,
+                arr.shape[1] * self.m.dx * 1e9,
                 0,
-                arr.shape[0] * self.llyr.dy * 1e9,
+                arr.shape[0] * self.m.dy * 1e9,
             ],
         )
-        ax.set(title=self.llyr.sim_name, xlabel="x (nm)", ylabel="y (nm)")
+        ax.set(title=self.m.sim_name, xlabel="x (nm)", ylabel="y (nm)")
         fig.tight_layout()
         self.add_radial_phase_colormap(ax)
         return ax

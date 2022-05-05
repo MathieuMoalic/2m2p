@@ -12,8 +12,8 @@ class fft_tb(Base):
         tstep: int = 1,
         normalize: bool = False,
     ):
-        y = self.llyr[f"table/{dset}"][slice(tmin, tmax, tstep)]
-        ts = self.llyr["table/t"][:]
+        y = self.m[f"table/{dset}"][slice(tmin, tmax, tstep)]
+        ts = self.m["table/t"][:]
         table_dt = (ts[-1] - ts[0]) / len(ts)
         x = np.fft.rfftfreq(y.shape[0], table_dt * tstep) * 1e-9
         y -= y[0]

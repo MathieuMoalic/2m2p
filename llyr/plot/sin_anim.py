@@ -8,7 +8,7 @@ from ..base import Base
 class sin_anim(Base):
     def plot(self, dset, f):
         fig, axes = plt.subplots(1, 3, figsize=(7, 2), dpi=200)
-        arr = self.llyr.calc.sin_anim(dset, f)
+        arr = self.m.calc.sin_anim(dset, f)
         axes[0].imshow(arr[0, :, :, 0])
         axes[1].imshow(arr[0, :, :, 1])
         axes[2].imshow(arr[0, :, :, 2])
@@ -23,7 +23,7 @@ class sin_anim(Base):
             fig, run, interval=1, frames=np.arange(1, arr.shape[0], dtype="int")
         )
         ani.save(
-            f"{self.llyr.sim_name}_{dset}_{f}.mp4",
+            f"{self.m.sim_name}_{dset}_{f}.mp4",
             writer="ffmpeg",
             fps=25,
             dpi=200,

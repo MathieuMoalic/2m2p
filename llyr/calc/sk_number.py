@@ -5,7 +5,7 @@ from ..base import Base
 
 class sk_number(Base):
     def calc(self, dset: str, z: int = 0, t: int = 0):
-        spin_grid = self.llyr[dset][t, z, :, :, :]
+        spin_grid = self.m[dset][t, z, :, :, :]
         spin_pad = np.pad(
             spin_grid, ((1, 1), (1, 1), (0, 0)), mode="constant", constant_values=0.0
         )

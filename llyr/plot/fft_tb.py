@@ -21,16 +21,16 @@ class fft_tb(Base):
             self.fig = axes[0].figure
             self.axes = axes
         # for dset, ax in zip(["mx", "my", "mz"], self.axes):
-        # freqs, spec = self.llyr.calc.fft_tb(
+        # freqs, spec = self.m.calc.fft_tb(
         #     dset, tmax=fft_tmax, tmin=fft_tmin, tstep=fft_tstep
         # )
-        freqs = self.llyr.fft.m.freqs[:]
-        spec = self.llyr.fft.m.max[:]
-        freqs, spec = self.llyr.calc.fminmax(freqs, fmin, fmax, spec=spec)
+        freqs = self.m.fft.m.freqs[:]
+        spec = self.m.fft.m.max[:]
+        freqs, spec = self.m.calc.fminmax(freqs, fmin, fmax, spec=spec)
         for comp in range(3):
             ax = axes[comp]
             ax.plot(freqs, spec[:, comp])
-            peaks = self.llyr.calc.peaks(
+            peaks = self.m.calc.peaks(
                 freqs, spec[:, comp], thres=thres, min_dist=min_dist
             )
             for peak in peaks:
@@ -58,7 +58,7 @@ class fft_tb(Base):
         # self.axes[0].text(
         #     0,
         #     1.1,
-        #     self.llyr.sim_name,
+        #     self.m.sim_name,
         #     transform=self.axes[0].transAxes,
         #     fontweight="bold",
         #     ha="left",

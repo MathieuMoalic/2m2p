@@ -22,8 +22,8 @@ class report(Base):
         def get_spectra() -> dict:
             spectra = {}
             for c in range(3):
-                y = self.llyr[f"table/{dset}"][slice(tmin, tmax, tstep), c]
-                ts = self.llyr["table/t"][slice(tmin, tmax, tstep)]
+                y = self.m[f"table/{dset}"][slice(tmin, tmax, tstep), c]
+                ts = self.m["table/t"][slice(tmin, tmax, tstep)]
                 table_dt = (ts[-1] - ts[0]) / len(ts)
                 x = np.fft.rfftfreq(y.shape[0], table_dt * tstep) * 1e-9
                 y -= y[0]
@@ -62,7 +62,7 @@ class report(Base):
             ModeComp = namedtuple("ModeArr", "abs ang alpha")
             for peak in peaks:
                 modes_comps = []
-                arrs = self.llyr.get_mode(dset, peak.freq)[z, :, :]
+                arrs = self.m.get_mode(dset, peak.freq)[z, :, :]
                 for comp in [0, 1, 2]:
                     arr = arrs[..., comp]
                     arr_abs = np.abs(arr)
@@ -89,7 +89,7 @@ class report(Base):
         def plot_spectra(gs_main, spectra, all_peaks):
             gs_spectra = gs_main[0].subgridspec(1, 3, wspace=0, hspace=0)
             axes = gs_spectra.subplots()
-            axes[1].set_title(self.llyr.sim_name)
+            axes[1].set_title(self.m.sim_name)
             for c, ax in enumerate(axes):
                 peaks = all_peaks[c]
                 ax.plot(spectra["freqs"], spectra[c])
@@ -111,9 +111,9 @@ class report(Base):
             gs_modes = gs_main[1:].subgridspec(nb_rows, 3, wspace=0, hspace=0)
             extent = [
                 0,
-                modes[0].my.abs.shape[1] * self.llyr.dx * 1e9,
+                modes[0].my.abs.shape[1] * self.m.dx * 1e9,
                 0,
-                modes[0].mx.abs.shape[0] * self.llyr.dy * 1e9,
+                modes[0].mx.abs.shape[0] * self.m.dy * 1e9,
             ]
             # mode_list_max = np.max([np.max(mode.amp) for mode in modes])
             for i, mode in enumerate(modes):
@@ -166,7 +166,7 @@ class report(Base):
         if isinstance(save, str):
             fig.savefig(save, dpi=100)
         elif isinstance(save, bool) and save:
-            fig.savefig(f"{self.llyr.abs_path}/spectra.pdf", dpi=100)
+            fig.savefig(f"{self.m.abs_path}/spectra.pdf", dpi=100)
 
         self.fig = fig
         self.peaks = sorted_peaks

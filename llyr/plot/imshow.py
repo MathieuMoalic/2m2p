@@ -10,10 +10,10 @@ class imshow(Base):
         else:
             fig = ax.figure
         if zero:
-            arr = self.llyr[dset][[0, t], 0, :, :, c]
+            arr = self.m[dset][[0, t], 0, :, :, c]
             arr = arr[1] - arr[0]
         else:
-            arr = self.llyr[dset][t, 0, :, :, c]
+            arr = self.m[dset][t, 0, :, :, c]
         amin, amax = arr.min(), arr.max()
         if amin < 0 < amax:
             cmap = "cmo.balance"
@@ -29,13 +29,13 @@ class imshow(Base):
             vmax=vmax,
             extent=[
                 0,
-                arr.shape[1] * self.llyr.dx * 1e9,
+                arr.shape[1] * self.m.dx * 1e9,
                 0,
-                arr.shape[0] * self.llyr.dy * 1e9,
+                arr.shape[0] * self.m.dy * 1e9,
             ],
         )
         ax.set(
-            title=self.llyr.sim_name,
+            title=self.m.sim_name,
             xlabel="x (nm)",
             ylabel="y (nm)",
         )

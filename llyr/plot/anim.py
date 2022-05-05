@@ -18,7 +18,7 @@ class anim(Base):
         repeat: int = 1,
         figax=None,
     ):
-        arr = self.llyr.calc.anim(dset, f, periods=periods)[:, z]
+        arr = self.m.calc.anim(dset, f, periods=periods)[:, z]
         arr = np.tile(arr, (1, repeat, repeat, 1))
         arr = np.ma.masked_equal(arr, 0)
         u, v, w = arr[..., 0], arr[..., 1], arr[..., 2]
@@ -32,16 +32,16 @@ class anim(Base):
         stepy = max(int(u.shape[1] / 60), 1)
         scale = 1 / max(stepx, stepy)
         x, y = np.meshgrid(
-            np.arange(0, u.shape[2], stepx) * self.llyr.dx * 1e9,
-            np.arange(0, u.shape[1], stepy) * self.llyr.dy * 1e9,
+            np.arange(0, u.shape[2], stepx) * self.m.dx * 1e9,
+            np.arange(0, u.shape[1], stepy) * self.m.dy * 1e9,
         )
-        antidots = np.ma.masked_not_equal(self.llyr["m"][0, 0, :, :, 2], 0)
+        antidots = np.ma.masked_not_equal(self.m["m"][0, 0, :, :, 2], 0)
         antidots = np.tile(antidots, (repeat, repeat))
         extent = [
             0,
-            arr.shape[2] * self.llyr.dx * 1e9,
+            arr.shape[2] * self.m.dx * 1e9,
             0,
-            arr.shape[1] * self.llyr.dy * 1e9,
+            arr.shape[1] * self.m.dy * 1e9,
         ]
         t = 0
         if figax is None:
@@ -89,7 +89,7 @@ class anim(Base):
         # plt.show()
         # return ani
         if save_path is None:
-            anim_save_path = f"{self.llyr.abs_path}_{f}.mp4"
+            anim_save_path = f"{self.m.abs_path}_{f}.mp4"
         else:
             anim_save_path = save_path
         ani.save(

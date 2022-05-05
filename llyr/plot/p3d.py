@@ -26,7 +26,7 @@ class p3d(Base):
                 yslice = slice(None, None, 10)
             if xslice is None:
                 xslice = slice(None, None, 10)
-            arr = self.llyr[dset][tslice, zslice, yslice, xslice]
+            arr = self.m[dset][tslice, zslice, yslice, xslice]
         else:
             if data.ndim == 5:
                 arr = data

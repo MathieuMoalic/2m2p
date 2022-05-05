@@ -1,6 +1,6 @@
 class Base:
     def __init__(self, llyr):
-        self.llyr = llyr
+        self.m = llyr
 
     def __repr__(self):
         return ""

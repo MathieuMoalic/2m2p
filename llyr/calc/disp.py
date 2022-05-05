@@ -22,14 +22,14 @@ class disp(Base):
         if name is None:
             name = dset_name
         if force:
-            self.llyr.rm(f"disp/{name}")
+            self.m.rm(f"disp/{name}")
         if any(
-            f"disp/{name}/{d}" in self.llyr for d in ["freqs", "kvecs", "disp", "fft2d"]
+            f"disp/{name}/{d}" in self.m for d in ["freqs", "kvecs", "disp", "fft2d"]
         ):
             raise NameError(
                 f"The dataset:'disp/{name}' already exists, you can use 'force=True'"
             )
-        dset = self.llyr[dset_name]
+        dset = self.m[dset_name]
         if tslice.stop is None or tslice.stop > dset.shape[0]:
             tslice = slice(dset.shape[0])
 
@@ -46,7 +46,7 @@ class disp(Base):
         arr *= np.sqrt(hann2d)[:, None, :, None]
         # 2d fft on t and x => f,y,kx,c
         arr = np.fft.fft2(arr, axes=[0, 2])
-        self.llyr.create_dataset(f"disp/{name}/fft2d", data=arr, chunks=None)
+        self.m.create_dataset(f"disp/{name}/fft2d", data=arr, chunks=None)
         # substract the avr of t,x for a given y  => f,y,kx,c
         arr -= np.average(arr, axis=(0, 2))[None, :, None, :]
         # split f in 2, take 1st half => f,y,kx,c
@@ -54,14 +54,14 @@ class disp(Base):
         arr = np.fft.fftshift(arr, axes=(1, 2))
         arr = np.abs(arr)  # from complex to real
         arr = np.sum(arr, axis=1)  # sum y => f,kx,c
-        self.llyr.create_dataset(f"disp/{name}/disp", data=arr, chunks=None)
+        self.m.create_dataset(f"disp/{name}/disp", data=arr, chunks=None)
 
         ts = dset.attrs["t"][tslice]
         freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts))
-        self.llyr.create_dataset(f"disp/{name}/freqs", data=freqs, chunks=None)
+        self.m.create_dataset(f"disp/{name}/freqs", data=freqs, chunks=None)
 
-        kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.llyr.dx)) * 2 * np.pi
-        self.llyr.create_dataset(f"disp/{name}/kvecs", data=kvecs, chunks=None)
+        kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.m.dx)) * 2 * np.pi
+        self.m.create_dataset(f"disp/{name}/kvecs", data=kvecs, chunks=None)
 
     def calc_da(
         self,
@@ -77,14 +77,14 @@ class disp(Base):
         if name is None:
             name = dset_name
         if force:
-            self.llyr.rm(f"disp/{name}")
+            self.m.rm(f"disp/{name}")
         if any(
-            f"disp/{name}/{d}" in self.llyr for d in ["freqs", "kvecs", "disp", "fft2d"]
+            f"disp/{name}/{d}" in self.m for d in ["freqs", "kvecs", "disp", "fft2d"]
         ):
             raise NameError(
                 f"The dataset:'disp/{name}' already exists, you can use 'force=True'"
             )
-        dset = self.llyr[dset_name]
+        dset = self.m[dset_name]
         if tslice.stop is None or tslice.stop > dset.shape[0]:
             tslice = slice(dset.shape[0])
 
@@ -103,7 +103,7 @@ class disp(Base):
             arr *= np.sqrt(hann2d)[:, None, :, None]
             # 2d fft on t and x => f,y,kx,c
             arr = da.fft.fft2(arr, axes=[0, 2])
-            d0 = self.llyr.create_dataset(
+            d0 = self.m.create_dataset(
                 f"disp/{name}/fft2d",
                 shape=arr.shape,
                 chunks=(1, 128, 128, None),
@@ -117,7 +117,7 @@ class disp(Base):
             arr = da.fft.fftshift(arr, axes=(1, 2))
             arr = da.absolute(arr)  # from complex to real
             arr = da.sum(arr, axis=1)  # sum y => f,kx,c
-            d1 = self.llyr.create_dataset(
+            d1 = self.m.create_dataset(
                 f"disp/{name}/disp",
                 shape=arr.shape,
                 chunks=None,
@@ -127,7 +127,7 @@ class disp(Base):
 
         ts = dset.attrs["t"][tslice]
         freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts))
-        self.llyr.create_dataset(f"disp/{name}/freqs", data=freqs, chunks=None)
+        self.m.create_dataset(f"disp/{name}/freqs", data=freqs, chunks=None)
 
-        kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.llyr.dx)) * 2 * np.pi
-        self.llyr.create_dataset(f"disp/{name}/kvecs", data=kvecs, chunks=None)
+        kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.m.dx)) * 2 * np.pi
+        self.m.create_dataset(f"disp/{name}/kvecs", data=kvecs, chunks=None)

@@ -21,12 +21,12 @@ class fft(Base):
         if name is None:
             name = dset_name
         if force:
-            self.llyr.rm(f"fft/{name}")
-        if any(f"fft/{name}/{d}" in self.llyr for d in ["freqs", "fft"]):
+            self.m.rm(f"fft/{name}")
+        if any(f"fft/{name}/{d}" in self.m for d in ["freqs", "fft"]):
             raise NameError(
                 f"The dataset:'fft/{name}' already exists, you can use 'force=True'"
             )
-        dset = self.llyr[dset_name]
+        dset = self.m[dset_name]
         if tslice.stop is None or tslice.stop > dset.shape[0]:
             tslice = slice(dset.shape[0])
         arr = dset[(tslice, zslice, yslice, xslice, cslice)]
@@ -39,12 +39,12 @@ class fft(Base):
         arr = np.fft.rfft(arr, axis=0)
         arr = np.abs(arr)
         arr = np.max(arr, axis=(1, 2, 3))
-        self.llyr.create_dataset(
+        self.m.create_dataset(
             f"fft/{name}/fft", data=arr, chunks=False, compressor=False
         )
 
         ts = dset.attrs["t"][tslice]
         freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts))
-        self.llyr.create_dataset(
+        self.m.create_dataset(
             f"fft/{name}/freqs", data=freqs, chunks=False, compressor=False
         )

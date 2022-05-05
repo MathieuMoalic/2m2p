@@ -9,13 +9,13 @@ from ..base import Base
 
 class modes(Base):
     def plot(self, dset: str, f: float, z: int = 0, axes=None):
-        mode_list = self.llyr.get_mode(dset, f)[z]
+        mode_list = self.m.get_mode(dset, f)[z]
         mode_list_max = np.abs(mode_list).max()
         extent = [
             0,
-            mode_list.shape[1] * self.llyr.dx * 1e9,
+            mode_list.shape[1] * self.m.dx * 1e9,
             0,
-            mode_list.shape[0] * self.llyr.dy * 1e9,
+            mode_list.shape[0] * self.m.dy * 1e9,
         ]
 
         if axes is None:
@@ -76,9 +76,9 @@ class modes(Base):
             )
             cb.set_ticklabels([r"-$\pi$", 0, r"$\pi$"])
             cb.ax.set_ylabel("Phase")
-        # fi = (np.abs(self.llyr[f"mode_list/{dset}/freqs"][:] - f)).argmin()
-        # ff = self.llyr[f"mode_list/{dset}/freqs"][:][fi]
-        fig.suptitle(f"{self.llyr.sim_name}")
+        # fi = (np.abs(self.m[f"mode_list/{dset}/freqs"][:] - f)).argmin()
+        # ff = self.m[f"mode_list/{dset}/freqs"][:][fi]
+        fig.suptitle(f"{self.m.sim_name}")
         fig.tight_layout()
         # for ax in axes.flatten():
         #     ax.set(xticks=[], yticks=[])
@@ -95,13 +95,13 @@ class modes(Base):
         z: int = 0,
         repeat: int = 1,
     ):
-        mode = self.llyr.get_mode(dset, f, comp)[z]
+        mode = self.m.get_mode(dset, f, comp)[z]
         mode = np.tile(mode, (repeat, repeat))
         extent = [
             0,
-            mode.shape[1] * self.llyr.dx * 1e9,
+            mode.shape[1] * self.m.dx * 1e9,
             0,
-            mode.shape[0] * self.llyr.dy * 1e9,
+            mode.shape[0] * self.m.dy * 1e9,
         ]
         if color == "amp":
             ax.imshow(
@@ -138,7 +138,7 @@ class modes(Base):
             )
 
     def plot_one_v2(self, ax, dset, f, comp, repeat=1, z=0):
-        arr = self.llyr.get_mode(dset, f)[z]
+        arr = self.m.get_mode(dset, f)[z]
         arr = np.real(arr)
         arr = np.tile(arr, (repeat, repeat))
         arr = np.ma.masked_equal(arr, 0)
@@ -153,16 +153,16 @@ class modes(Base):
         stepy = max(int(u.shape[0] / 60), 1)
         scale = 1 / max(stepx, stepy) * 10
         x, y = np.meshgrid(
-            np.arange(0, u.shape[1], stepx) * self.llyr.dx * 1e9,
-            np.arange(0, u.shape[0], stepy) * self.llyr.dy * 1e9,
+            np.arange(0, u.shape[1], stepx) * self.m.dx * 1e9,
+            np.arange(0, u.shape[0], stepy) * self.m.dy * 1e9,
         )
-        # antidots = np.ma.masked_not_equal(self.llyr["m"][0, 0, :, :, 2], 0)
+        # antidots = np.ma.masked_not_equal(self.m["m"][0, 0, :, :, 2], 0)
         # antidots = np.tile(antidots, (repeat, repeat))
         extent = [
             0,
-            arr.shape[1] * self.llyr.dx * 1e9,
+            arr.shape[1] * self.m.dx * 1e9,
             0,
-            arr.shape[0] * self.llyr.dy * 1e9,
+            arr.shape[0] * self.m.dy * 1e9,
         ]
         ax.quiver(
             x,
