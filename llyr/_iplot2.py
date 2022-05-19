@@ -62,20 +62,14 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
     axes = np.array(axes).reshape(3, 3)
 
     class state:
-        val = 0.1
-        m = 0
-        f = 0
+        val = 0.05
+        x = xlabels[0]
+        y = 10
+        m = op(f"{paths[0]}")
+        peaks = []
+        peak_index = 0
 
     s = state()
-
-    # ttext = ax1.text(
-    #     0.7,
-    #     0.08,
-    #     f"Peak threshold = {s.val*100:.2f}%",
-    #     transform=fig.transFigure,
-    #     va="center",
-    #     ha="center",
-    # )
 
     def plot_mode(m, f):
         for i in range(3):
@@ -116,55 +110,61 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
                 interpolation="None",
                 aspect="equal",
             )
-            # axes[2, i].set_title(f"amp = {np.sum(np.abs(arr)):.2e}", fontsize=8)
+
+    def pick_point(x: float, y: float, snap: bool):
+        for ax in axes.flatten():
+            ax.cla()
+            ax.set(xticks=[], yticks=[])
+        ax1.set_title(f"{x=} - {y=}")
+        x = xlabels[np.abs(xlabels - x).argmin()]
+        m = op(f"{path}/{x:0>4}.zarr")
+        if snap:
+            fft = m.fft.m.max[2:, 0]
+            freqs = m.fft.m.freqs[2:]  # * 1e-9
+            peaks = freqs[peakutils.indexes(fft, thres=s.val, min_dist=2)]
+            s.peaks = peaks
+            s.peak_index = np.abs(peaks - y).argmin()
+            y = peaks[s.peak_index]
+        vline.set_data([x, x], [0, 1])
+        hline.set_data([0, 1], [y, y])
+        plot_mode(m, y)
+        axes[0, 1].text(
+            0.5,
+            1.3,
+            f"{x} {unit} -  {y:.2f} GHz",
+            va="center",
+            ha="center",
+            transform=axes[0, 1].transAxes,
+        )
+        s.x, s.y, s.m = x, y, m
 
     def onclick(event):
         if event.inaxes == ax1:
-            for ax in axes.flatten():
-                ax.cla()
-                ax.set(xticks=[], yticks=[])
-            x = xlabels[np.abs(xlabels - event.xdata).argmin()]
-            m = op(f"{path}/{x:0>3}.zarr")
             if event.button.name == "RIGHT":
-                fft = m.fft.m.max[2:, 0]
-                freqs = m.fft.m.freqs[2:]  # * 1e-9
-                peaks = freqs[peakutils.indexes(fft, thres=s.val, min_dist=5)]
-                y = peaks[np.abs(peaks - event.ydata).argmin()]
+                pick_point(event.xdata, event.ydata, True)
             else:
-                y = event.ydata
-            vline.set_data([x, x], [0, 1])
-            hline.set_data([0, 1], [y, y])
-            plot_mode(m, y)
-            axes[0, 1].text(
-                0.5,
-                1.3,
-                f"{x} {unit} -  {y:.2f} GHz",
-                va="center",
-                ha="center",
-                transform=axes[0, 1].transAxes,
-            )
-            s.m = m
-            s.f = y
+                pick_point(event.xdata, event.ydata, False)
 
     def onpress(event):
         if event.key == "-":
             s.val *= 0.8
-            # ttext.set_text(f"Peak threshold = {s.val*100:.2f}%")
         if event.key == "=":
             s.val *= 1.2
-            # ttext.set_text(f"Peak threshold = {s.val*100:.2f}%")
         if event.key == "g":
-            # ax1.set_title(f"{path} - Saving gif . . . ")
             s.m.plot.anim(
                 "m",
-                f=s.f,
-                save_path=f"figs/gifs2/{s.m.sim_name}_{s.f:.2f}.mp4",
-                repeat=2,
+                f=s.y,
+                save_path=f"figs/gifs2/{s.m.sim_name}_{s.y:.2f}.gif",
+                repeat=1,
             )
-            # fig.savefig(
-            #     f"figs/report/gifs/{s.m.sim_name}_{s.f:.2f}.png", transparent=True
-            # )
-            # ax1.set_title(f"{path} -  Gif saved as figs/{m.sim_name}_{s.f:.2f}.gif ")
+        if event.key == "right":
+            pick_point(s.x + lstep, s.y, True)
+        if event.key == "left":
+            pick_point(s.x - lstep, s.y, True)
+        if event.key == "up":
+            pick_point(s.x, s.peaks[s.peak_index + 1], True)
+        if event.key == "down":
+            pick_point(s.x, s.peaks[s.peak_index - 1], True)
 
     fig.canvas.mpl_connect("button_press_event", onclick)
     fig.canvas.mpl_connect("key_press_event", onpress)

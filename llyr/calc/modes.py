@@ -7,12 +7,12 @@ from ..base import Base
 
 
 class modes(Base):
-    def calc(self, dset: str = "m", force=False, name=None, tmax=None):
+    def calc(self, dset: str = "m", name=None, tmax=None):
         if name is None:
             name = dset
         with ProgressBar():
             self.m.rm(f"modes/{name}")
-            # self.m.rm(f"fft/{dset}")
+            self.m.rm(f"fft/{dset}")
             x1 = da.from_zarr(self.m[dset])
             x1 = x1[:tmax]
             x1 = x1.rechunk((x1.shape[0], 1, 64, 64, x1.shape[-1]))
@@ -21,7 +21,7 @@ class modes(Base):
                 f"modes/{name}/arr",
                 shape=x2.shape,
                 chunks=(1, None, None, None, None),
-                dtype=np.complex128,
+                dtype=np.complex64,
             )
             da.to_zarr(x2, d1)
             x1 -= da.average(x1)

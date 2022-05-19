@@ -74,7 +74,7 @@ class p3d(Base):
         self.fig = fig
         self.ax = ax
 
-        if data.ndim == 5:
+        if arr.ndim == 5:
             self.run(5)
         return self
 
