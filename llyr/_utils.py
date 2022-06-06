@@ -2,6 +2,7 @@ import os
 import glob
 import multiprocessing as mp
 import re
+import colorsys
 
 import numpy as np
 import numpy.typing as npt
@@ -312,3 +313,140 @@ def get_cmaps():
         mpl.patches.Patch(color="blue", label="mz"),
     ]
     return cmaps, handles
+
+
+class MidpointNormalize(mpl.colors.Normalize):
+    def __init__(self, vmin=None, vmax=None, midpoint=0.0, clip=False):
+        self.midpoint = midpoint
+        mpl.colors.Normalize.__init__(self, vmin, vmax, clip)
+
+    def __call__(self, value, clip=None):
+        x, y = [self.vmin, self.midpoint, self.vmax], [0, 0.5, 1]
+        return np.ma.masked_array(np.interp(value, x, y))
+
+
+import struct
+
+
+def save_ovf(path: str, arr: np.ndarray, dx: float, dy: float, dz: float) -> None:
+    """Saves the given dataset for a given t to a valid OOMMF V2 ovf file"""
+
+    def whd(s):
+        s += "\n"
+        f.write(s.encode("ASCII"))
+
+    out = arr.astype("<f4")
+    out = out.tobytes()
+
+    xnodes, ynodes, znodes = arr.shape[2], arr.shape[1], arr.shape[0]
+    xmin, ymin, zmin = 0, 0, 0
+    xmax, ymax, zmax = xnodes * dx, ynodes * dy, znodes * dz
+    xbase, ybase, _ = dx / 2, dy / 2, dz / 2
+    valuedim = arr.shape[-1]
+    valuelabels = "x y z"
+    valueunits = "1 1 1"
+    total_sim_time = "0"
+    name = path.split("/")[-1]
+    with open(path, "wb") as f:
+        whd("# OOMMF OVF 2.0")
+        whd("# Segment count: 1")
+        whd("# Begin: Segment")
+        whd("# Begin: Header")
+        whd(f"# Title: {name}")
+        whd("# meshtype: rectangular")
+        whd("# meshunit: m")
+        whd(f"# xmin: {xmin}")
+        whd(f"# ymin: {ymin}")
+        whd(f"# zmin: {zmin}")
+        whd(f"# xmax: {xmax}")
+        whd(f"# ymax: {ymax}")
+        whd(f"# zmax: {zmax}")
+        whd(f"# valuedim: {valuedim}")
+        whd(f"# valuelabels: {valuelabels}")
+        whd(f"# valueunits: {valueunits}")
+        whd(f"# Desc: Total simulation time:  {total_sim_time}  s")
+        whd(f"# xbase: {xbase}")
+        whd(f"# ybase: {ybase}")
+        whd(f"# zbase: {ybase}")
+        whd(f"# xnodes: {xnodes}")
+        whd(f"# ynodes: {ynodes}")
+        whd(f"# znodes: {znodes}")
+        whd(f"# xstepsize: {dx}")
+        whd(f"# ystepsize: {dy}")
+        whd(f"# zstepsize: {dz}")
+        whd("# End: Header")
+        whd("# Begin: Data Binary 4")
+        f.write(struct.pack("<f", 1234567.0))
+        f.write(out)
+        whd("# End: Data Binary 4")
+        whd("# End: Segment")
+
+
+def trans_ax_to_data(ax, rec):
+    x0, y0, width, height = rec
+    xmin, xmax = ax.get_xlim()
+    x = np.abs(xmax) + np.abs(xmin)
+    ymin, ymax = ax.get_ylim()
+    y = np.abs(ymax) + np.abs(ymin)
+    new_rec = [x0 * x, y0 * y, width * x, height * y]
+    print(new_rec)
+    return new_rec
+
+
+def add_radial_phase_colormap(ax, rec=None):
+    legend = os.path.join(
+        os.path.dirname(os.path.realpath(__file__)), "color-legend.png"
+    )
+    if rec is None:
+        rec = [0.03, 0.03, 0.25, 0.25]
+    cax = ax.inset_axes(rec)
+    cax.axis("off")
+    im = mpl.image.imread(legend)
+    cax.imshow(im, origin="upper")
+
+
+def add_radial_phase_colormap2(ax, rec=None):
+    def func1(hsl):
+        return np.array(colorsys.hls_to_rgb(hsl[0] / (2 * np.pi), hsl[1], hsl[2]))
+
+    if rec is None:
+        rec = [0.85, 0.85, 0.15, 0.15]
+    cax = plt.axes(rec, polar=True)
+    p1, p2 = ax.get_position(), cax.get_position()
+    cax.set_position([p1.x1 - p2.width, p1.y1 - p2.height, p2.width, p2.height])
+
+    theta = np.linspace(0, 2 * np.pi, 360)
+    r = np.arange(0, 100, 1)
+    hls = np.ones((theta.size * r.size, 3))
+
+    hls[:, 0] = np.tile(theta, r.size)
+    white_pad = 20
+    black_pad = 10
+    hls[: white_pad * theta.size, 1] = 1
+    hls[-black_pad * theta.size :, 1] = 0
+    hls[white_pad * theta.size : -black_pad * theta.size, 1] = np.repeat(
+        np.linspace(1, 0, r.size - white_pad - black_pad), theta.size
+    )
+    rgb = np.apply_along_axis(func1, 1, hls)
+    cax.pcolormesh(
+        theta,
+        r,
+        np.zeros((r.size, theta.size)),
+        color=rgb,
+        shading="nearest",
+    )
+    cax.spines["polar"].set_visible(False)
+    cax.set(yticks=[], xticks=[])
+    # up_symbol = dict(x=0.5, y=0.5, name=r"$\bigodot$")
+    # down_symbol = dict(x=0.1, y=0.5, name=r"$\bigotimes$")
+    # for s in [up_symbol, down_symbol]:
+    #     cax.text(
+    #         s["x"],
+    #         s["y"],
+    #         s["name"],
+    #         color="#3b5bff",
+    #         horizontalalignment="center",
+    #         verticalalignment="center",
+    #         fontsize=5,
+    #         transform=cax.transAxes,
+    #     )

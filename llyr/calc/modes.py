@@ -12,9 +12,11 @@ class modes(Base):
             name = dset
         with ProgressBar():
             self.m.rm(f"modes/{name}")
-            self.m.rm(f"fft/{dset}")
+            self.m.rm(f"fft/{name}")
             x1 = da.from_zarr(self.m[dset])
             x1 = x1[:tmax]
+            if "stable" in self.m:
+                x1 -= da.from_zarr(self.m.stable)[:]
             x1 = x1.rechunk((x1.shape[0], 1, 64, 64, x1.shape[-1]))
             x2 = da.fft.rfft(x1, axis=0)
             d1 = self.m.create_dataset(
@@ -28,11 +30,26 @@ class modes(Base):
             x1 = x1 * np.hanning(x1.shape[0])[:, None, None, None, None]
             x1 = np.fft.rfft(x1, axis=0)
             x1 = da.absolute(x1)
-            x1 = da.max(x1, axis=(1, 2, 3))
-            d2 = self.m.create_dataset(
-                f"fft/{name}/max", shape=x1.shape, chunks=None, dtype=np.float32
+            fft_max = da.max(x1, axis=(1, 2, 3))
+            fft_sum = da.sum(x1, axis=(1, 2, 3))
+            da.to_zarr(
+                fft_max,
+                self.m.create_dataset(
+                    f"fft/{name}/max",
+                    shape=fft_max.shape,
+                    chunks=None,
+                    dtype=np.float32,
+                ),
             )
-            da.to_zarr(x1, d2)
+            da.to_zarr(
+                fft_sum,
+                self.m.create_dataset(
+                    f"fft/{name}/sum",
+                    shape=fft_sum.shape,
+                    chunks=None,
+                    dtype=np.float32,
+                ),
+            )
         ts = self.m.m.attrs["t"][:]
         freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts)) * 1e-9
         self.m.create_dataset(f"fft/{name}/freqs", data=freqs, chunks=False)

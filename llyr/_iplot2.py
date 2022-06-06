@@ -37,7 +37,7 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
             aspect="auto",
             origin="lower",
             interpolation="nearest",
-            norm=mpl.colors.LogNorm(),
+            # norm=mpl.colors.LogNorm(vmin=0.1),
             extent=[
                 xlabels[0] - lstep / 2,
                 xlabels[-1] + lstep / 2,
@@ -62,14 +62,20 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
     axes = np.array(axes).reshape(3, 3)
 
     class state:
-        val = 0.05
+        thres: float
         x = xlabels[0]
         y = 10
         m = op(f"{paths[0]}")
         peaks = []
         peak_index = 0
 
+        def update_thres(self, thres):
+            ax1.get_images()[0].set_norm(mpl.colors.LogNorm(vmin=thres))
+            self.thres = thres
+            ax1.set_title(f"vmin = {self.thres}")
+
     s = state()
+    s.update_thres(0.002)
 
     def plot_mode(m, f):
         for i in range(3):
@@ -102,11 +108,13 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
                 vmax=np.pi,
                 interpolation="None",
             )
+            if i in [0, 1]:
+                arr = np.abs(mode[..., 1]) + np.abs(mode[..., 0])
             axes[2, i].imshow(
                 np.abs(arr),
                 cmap="inferno",
                 vmin=0,
-                vmax=absmax,
+                # vmax=absmax,
                 interpolation="None",
                 aspect="equal",
             )
@@ -115,13 +123,13 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
         for ax in axes.flatten():
             ax.cla()
             ax.set(xticks=[], yticks=[])
-        ax1.set_title(f"{x=} - {y=}")
+        # ax1.set_title(f"{x=} - {y=}")
         x = xlabels[np.abs(xlabels - x).argmin()]
         m = op(f"{path}/{x:0>4}.zarr")
         if snap:
             fft = m.fft.m.max[2:, 0]
             freqs = m.fft.m.freqs[2:]  # * 1e-9
-            peaks = freqs[peakutils.indexes(fft, thres=s.val, min_dist=2)]
+            peaks = freqs[peakutils.indexes(fft, thres=s.thres, min_dist=2)]
             s.peaks = peaks
             s.peak_index = np.abs(peaks - y).argmin()
             y = peaks[s.peak_index]
@@ -147,14 +155,14 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
 
     def onpress(event):
         if event.key == "-":
-            s.val *= 0.8
+            s.update_thres(s.thres * 1.1)
         if event.key == "=":
-            s.val *= 1.2
+            s.update_thres(s.thres * 0.9)
         if event.key == "g":
             s.m.plot.anim(
                 "m",
                 f=s.y,
-                save_path=f"figs/gifs2/{s.m.sim_name}_{s.y:.2f}.gif",
+                save_path=f"figs/gifs4/{s.m.sim_name}_{s.y:.2f}.gif",
                 repeat=1,
             )
         if event.key == "right":

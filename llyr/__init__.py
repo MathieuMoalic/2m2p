@@ -14,6 +14,10 @@ from ._utils import (
     get_ovf_parms,
     out_to_zarr,
     hsl2rgb,
+    MidpointNormalize,
+    save_ovf,
+    get_cmaps,
+    add_radial_phase_colormap,
 )
 from ._iplot import iplotp
 from ._iplot2 import iplotp2
@@ -27,6 +31,10 @@ __all__ = [
     "out_to_zarr",
     "hsl2rgb",
     "iplot",
+    "MidpointNormalize",
+    "save_ovf",
+    "get_cmaps",
+    "add_radial_phase_colormap",
 ]
 
 
@@ -40,7 +48,7 @@ def iplot2(*args, **kwargs):
 
 def op(path):
     if not os.path.exists(path):
-        raise FileNotFoundError("Wrong path.")
+        raise FileNotFoundError(f"Path Not Found : '{path}'")
     if "ssh://" in path:
         return Group(zarr.storage.FSStore(path))
     else:

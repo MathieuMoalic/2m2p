@@ -1,0 +1,33 @@
+import numpy as np
+
+from ..base import Base
+
+from .._utils import save_ovf
+
+
+class ovf_anim(Base):
+    def plot(
+        self,
+        dset: str = "m",
+        f: float = 9,
+        step: int = 10,
+        periods: int = 1,
+        repeat: int = 1,
+        p=0,
+    ):
+        arr = self.m.calc.anim(dset, f, periods=periods)[:, :, ::step, ::step]
+        arr = self.m.stable[:, :, ::step, ::step] * p + arr * (1 - p)
+        arr = np.tile(arr, (1, 1, repeat, repeat, 1))
+        arr = np.ma.masked_equal(arr, 0)
+        arr /= 10
+        self.m.rm(f"anim/{f}")
+        self.m.create_dataset(f"anim/{f}", shape=arr.shape, dtype=np.float32)
+        for t in range(arr.shape[0]):
+            save_ovf(
+                f"{self.m.abs_path}/anim/{f}/{t}.ovf",
+                arr[t],
+                self.m.dx,
+                self.m.dy,
+                self.m.dz,
+            )
+        print(f"Saved in: {self.m.abs_path}/anim/{f}")

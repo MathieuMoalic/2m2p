@@ -3,7 +3,7 @@ import colorsys
 import matplotlib.pyplot as plt
 import numpy as np
 
-from .._utils import hsl2rgb
+from .._utils import hsl2rgb, add_radial_phase_colormap
 from ..base import Base
 
 
@@ -76,52 +76,5 @@ class snapshot(Base):
             ],
         )
         ax.set(title=self.m.sim_name, xlabel="x (nm)", ylabel="y (nm)")
-        fig.tight_layout()
-        self.add_radial_phase_colormap(ax)
+        add_radial_phase_colormap(ax)
         return ax
-
-    def add_radial_phase_colormap(self, ax, rec=None):
-        def func1(hsl):
-            return np.array(colorsys.hls_to_rgb(hsl[0] / (2 * np.pi), hsl[1], hsl[2]))
-
-        if rec is None:
-            rec = [0.85, 0.85, 0.15, 0.15]
-        cax = plt.axes(rec, polar=True)
-        p1, p2 = ax.get_position(), cax.get_position()
-        cax.set_position([p1.x1 - p2.width, p1.y1 - p2.height, p2.width, p2.height])
-
-        theta = np.linspace(0, 2 * np.pi, 360)
-        r = np.arange(0, 100, 1)
-        hls = np.ones((theta.size * r.size, 3))
-
-        hls[:, 0] = np.tile(theta, r.size)
-        white_pad = 20
-        black_pad = 10
-        hls[: white_pad * theta.size, 1] = 1
-        hls[-black_pad * theta.size :, 1] = 0
-        hls[white_pad * theta.size : -black_pad * theta.size, 1] = np.repeat(
-            np.linspace(1, 0, r.size - white_pad - black_pad), theta.size
-        )
-        rgb = np.apply_along_axis(func1, 1, hls)
-        cax.pcolormesh(
-            theta,
-            r,
-            np.zeros((r.size, theta.size)),
-            color=rgb,
-            shading="nearest",
-        )
-        cax.spines["polar"].set_visible(False)
-        cax.set(yticks=[], xticks=[])
-        up_symbol = dict(x=0.5, y=0.5, name=r"$\bigodot$")
-        down_symbol = dict(x=0.1, y=0.5, name=r"$\bigotimes$")
-        for s in [up_symbol, down_symbol]:
-            cax.text(
-                s["x"],
-                s["y"],
-                s["name"],
-                color="#3b5bff",
-                horizontalalignment="center",
-                verticalalignment="center",
-                fontsize=5,
-                transform=cax.transAxes,
-            )

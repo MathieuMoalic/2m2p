@@ -1,5 +1,6 @@
 from .anim import anim
 from .anim2 import anim2
+from .ovf_anim import ovf_anim
 from .fft_tb import fft_tb
 from .imshow import imshow
 from .modes import modes
@@ -15,6 +16,7 @@ class Plot:
     def __init__(self, llyr):
         self.anim = anim(llyr).plot
         self.anim2 = anim2(llyr).plot
+        self.ovf_anim = ovf_anim(llyr).plot
         self.fft_tb = fft_tb(llyr).plot
         self.imshow = imshow(llyr).plot
         self.modes = modes(llyr).plot
