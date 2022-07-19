@@ -10,12 +10,12 @@ import peakutils
 from ._utils import get_cmaps
 
 
-def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
+def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="mT"):
     if comps is None:
         comps = [0, 2]
     paths = sorted(
         glob(f"{path}/*.zarr"), key=lambda x: int(x.split("/")[-1].replace(".zarr", ""))
-    )
+    )  # [:110]
     xlabels = np.array([int(p.split("/")[-1].replace(".zarr", "")) for p in paths])
     lstep = xlabels[1] - xlabels[0]
     fig = plt.figure(figsize=(8, 4), dpi=150)
@@ -108,13 +108,13 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="nm"):
                 vmax=np.pi,
                 interpolation="None",
             )
-            if i in [0, 1]:
-                arr = np.abs(mode[..., 1]) + np.abs(mode[..., 0])
+            # if i in [0, 1]:
+            #     arr = np.abs(mode[..., 1]) + np.abs(mode[..., 0])
             axes[2, i].imshow(
                 np.abs(arr),
                 cmap="inferno",
                 vmin=0,
-                # vmax=absmax,
+                vmax=absmax,
                 interpolation="None",
                 aspect="equal",
             )

@@ -11,6 +11,7 @@ import matplotlib as mpl
 import zarr
 import h5py
 from numcodecs import Blosc
+import scipy as sp
 
 
 def normalize(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
@@ -450,3 +451,17 @@ def add_radial_phase_colormap2(ax, rec=None):
     #         fontsize=5,
     #         transform=cax.transAxes,
     #     )
+
+
+# def get_azymutal_number(path, r):
+#     fig, axes = plt.subplots(1, 3, figsize=(14, 5))
+#     for c in range(3):
+#         arr = op(path).get_mode("m", 6.66, c)[0]
+#         x, y = np.arange(arr.shape[0]), np.arange(arr.shape[0])
+#         vinterp = np.vectorize(sp.interpolate.interp2d(x, y, np.real(arr)))
+#         xcenter = len(x) / 2
+#         ycenter = len(y) / 2
+#         arclen = 2 * np.pi * r
+#         angle = np.linspace(0, 2 * np.pi, int(arclen * 2), endpoint=False)
+#         value = vinterp(xcenter + r * np.sin(angle), ycenter + r * np.cos(angle))
+#         axes[c].plot(angle, value)

@@ -35,6 +35,7 @@ __all__ = [
     "save_ovf",
     "get_cmaps",
     "add_radial_phase_colormap",
+    "op",
 ]
 
 
