@@ -18,6 +18,7 @@ from ._utils import (
     save_ovf,
     get_cmaps,
     add_radial_phase_colormap,
+    fix_bg,
 )
 from ._iplot import iplotp
 from ._iplot2 import iplotp2
@@ -34,6 +35,9 @@ __all__ = [
     "MidpointNormalize",
     "save_ovf",
     "get_cmaps",
+    "fix_bg",
+    "iplot",
+    "iplot2",
     "add_radial_phase_colormap",
     "op",
 ]
@@ -81,6 +85,9 @@ class Group(zarr.hierarchy.Group):
     def rm(self, dset: str):
         shutil.rmtree(f"{self.abs_path}/{dset}", ignore_errors=True)
 
+    def mkdir(self, name: str):
+        os.makedirs(f"{self.abs_path}/{name}", exist_ok=True)
+
     @property
     def pp(self):
         return self.tree(expand=True)
@@ -89,17 +96,13 @@ class Group(zarr.hierarchy.Group):
     def p(self):
         print(self.tree())
 
-    @property
-    def snap(self):
-        self.plot.snapshot_png("stable")
-
     def c_to_comp(self, c):
         return ["mx", "my", "mz"][c]
 
     def comp_to_c(self, c):
         return {"mx": 0, "my": 1, "mz": 2}[c]
 
-    def get_mode(self, dset: str, f: float, c: int = None):
+    def get_mode(self, dset: str, f: float, c: int | None = None):
         if f"modes/{dset}/arr" not in self:
             print("Calculating modes ...")
             self.calc.modes(dset)
@@ -118,13 +121,3 @@ class Group(zarr.hierarchy.Group):
                 raise NameError(
                     f"The dataset:'{dset}' already exists, you can use 'force=True'"
                 )
-
-    def make_report(self, dset="m"):
-        os.makedirs(f"{self.apath}/report")
-        r = self.plot.report(dset=dset, save=f"{self.apath}/report/spectra.pdf")
-        for peak in r.peaks:
-            self.plot.anim(
-                dset=dset,
-                f=peak.freq,
-                save_path=f"{self.apath}/report/{peak.freq:.2f}.gif",
-            )

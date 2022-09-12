@@ -1,6 +1,3 @@
-import os
-
-import numpy as np
 
 from ..base import Base
 
@@ -10,27 +7,20 @@ from .._utils import save_ovf
 class ovf_anim(Base):
     def plot(
         self,
-        savepath,
+        savepath: str = None,
         dset: str = "m",
-        f: float = 9,
-        step: int = 10,
-        periods: int = 1,
-        repeat: int = 1,
-        p=0,
+        slices = (slice(None),slice(None),slice(None,None,5),slice(None,None,5),slice(None)),
     ):
-        arr = self.m.calc.anim(dset, f, periods=periods)[:, :, ::step, ::step]
-        arr = self.m.stable[:, :, ::step, ::step] * p + arr * (1 - p)
-        arr = np.tile(arr, (1, 1, repeat, repeat, 1))
-        arr = np.ma.masked_equal(arr, 0)
-        arr /= 10
-        self.m.rm(f"anim/{f}")
-        self.m.create_dataset(f"anim/{f}", shape=arr.shape, dtype=np.float32)
-        # name = f"{savepath}/{}"
-        os.makedirs(savepath, exist_ok=True)
-        for t in range(arr.shape[0]):
+        if savepath is None:
+            savepath = f"anim/{dset}"
+        self.m.rm(savepath)
+        self.m.mkdir(savepath)
+        arr = self.m[dset][slices]
+        print(f"Shape : {arr.shape}")
+        for i,a in enumerate(arr):
             save_ovf(
-                f"{savepath}/{t}.ovf",
-                arr[t],
+                f"{self.m.abs_path}/{savepath}/{i}.ovf",
+                a,
                 self.m.dx,
                 self.m.dy,
                 self.m.dz,

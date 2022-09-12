@@ -10,10 +10,12 @@ from .report import report
 from .sin_anim import sin_anim
 from .cross_section import cross_section
 from .p3d import p3d
+from .ip import ip
 
 
 class Plot:
     def __init__(self, llyr):
+        self.ip = ip(llyr).plot
         self.anim = anim(llyr).plot
         self.anim2 = anim2(llyr).plot
         self.ovf_anim = ovf_anim(llyr).plot

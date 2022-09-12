@@ -12,6 +12,15 @@ import zarr
 import h5py
 from numcodecs import Blosc
 import scipy as sp
+import IPython
+
+
+def fix_bg():
+    IPython.get_ipython().run_cell_magic(
+        "html",
+        "",
+        "<style> .cell-output-ipywidget-background {background-color: transparent !important;}</style>",
+    )
 
 
 def normalize(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
@@ -191,7 +200,7 @@ def load_ovf(path: str):
 
 def get_ovf_parms(path: str):
     with open(path, "rb") as f:
-        parms: dict(int, int, int, int, float, float, float) = {}
+        parms = {}
         while True:
             line = f.readline().strip().decode("ASCII")
             if "valuedim" in line:
@@ -250,7 +259,7 @@ def get_b(x):
 
 def out_to_zarr2(path: str):
     m = zarr.open(f"{path}.zarr")
-    ovfs = sorted(glob(f"{path}/m*.ovf"), key=get_b, reverse=False)
+    ovfs = sorted(glob.glob(f"{path}/m*.ovf"), key=get_b, reverse=False)
     parms = get_ovf_parms(ovfs[0])
     dset_shape = (len(ovfs), parms["Nz"], parms["Ny"], parms["Nx"], parms["comp"])
     zarr_dset = m.create_dataset(

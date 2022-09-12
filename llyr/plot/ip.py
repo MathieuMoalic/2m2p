@@ -1,16 +1,9 @@
-from glob import glob
-from timeit import repeat
 import matplotlib.pyplot as plt
-import matplotlib as mpl
-from matplotlib.widgets import Button
-import numpy as np
-import zarr
-import peakutils
 
-from ._utils import get_cmaps
+from ..base import Base
 
 
-def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="mT"):
+def ip(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="mT"):
     if comps is None:
         comps = [0, 2]
     paths = sorted(
