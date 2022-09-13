@@ -7,7 +7,7 @@ import numpy as np
 import zarr
 import peakutils
 
-from ._utils import get_cmaps
+from ._utils import get_cmaps, make_cmap
 
 
 def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="mT"):
@@ -23,8 +23,8 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="mT"):
     ax1 = fig.add_subplot(gs[:, :3])
     ax1.tick_params(axis="x", bottom=False, top=True, labelbottom=False, labeltop=True)
     gs.update(left=0.08, right=0.99, top=0.88, bottom=0.01, wspace=0.1, hspace=0.1)
-    fig.background()
     cmaps, handles = get_cmaps()
+    cm1 = make_cmap((139, 233, 253, 0), (139, 233, 253, 255), 256)
     for comp in comps:
         arr = []
         for p in paths:
@@ -38,14 +38,15 @@ def iplotp2(op, path, xstep=2, comps=None, fmin=0, fmax=20, unit="mT"):
             aspect="auto",
             origin="lower",
             interpolation="nearest",
-            norm=mpl.colors.LogNorm(vmin=0.1),
+            norm=mpl.colors.LogNorm(vmin=0.01),
             extent=[
                 xlabels[0] - lstep / 2,
                 xlabels[-1] + lstep / 2,
                 freqs.min(),
                 freqs.max(),
             ],
-            cmap=cmaps[comp],
+            # cmap=cm1,
+            cmap="cmo.amp",
         )
     ax1.legend(handles=[handles[i] for i in comps], fontsize=8)
     ax1.set_ylim(fmin, fmax)

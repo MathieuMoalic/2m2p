@@ -19,9 +19,11 @@ from ._utils import (
     get_cmaps,
     add_radial_phase_colormap,
     fix_bg,
+    make_cmap,
 )
 from ._iplot import iplotp
 from ._iplot2 import iplotp2
+from .ip import ipp
 
 
 __all__ = [
@@ -40,6 +42,8 @@ __all__ = [
     "iplot2",
     "add_radial_phase_colormap",
     "op",
+    "ip",
+    "make_cmap",
 ]
 
 
@@ -49,6 +53,10 @@ def iplot(*args, **kwargs):
 
 def iplot2(*args, **kwargs):
     return iplotp2(op, *args, **kwargs)
+
+
+def ip(*args, **kwargs):
+    return ipp(op, *args, **kwargs)
 
 
 def op(path):

@@ -29,21 +29,6 @@ def normalize(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
         return out
 
 
-def rgb_int_from_vectors(arr: npt.NDArray[np.float32]) -> npt.NDArray[np.int32]:
-    x, y, z = arr[..., 0], arr[..., 1], arr[..., 2]
-    h = np.angle(x + 1j * y, deg=True)
-    s = np.sqrt(x**2 + y**2 + z**2)
-    l = (z + 1) / 2  # disable: flake8
-    rgb = np.zeros_like(arr, dtype=np.int32)
-    with np.errstate(divide="ignore", invalid="ignore"):
-        for i, n in enumerate([0, 8, 4]):
-            k = (n + h / 30) % 12
-            a = s * np.minimum(l, 1 - l)
-            k = np.clip(np.minimum(k - 3, 9 - k), -1, 1)
-            rgb[..., i] = (l - a * k) * 255
-    return (rgb[..., 0] << 16) + (rgb[..., 1] << 8) + rgb[..., 2]
-
-
 def hsl2rgb(hsl):
     h = hsl[..., 0] * 360
     s = hsl[..., 1]
@@ -305,6 +290,13 @@ def rechunk():
             # zarr.open(p).move("modes/m/arr2","modes/m/arr")
         else:
             print("Wrong shape ?")
+
+
+def make_cmap(min_color, max_color, N):
+    cmap = np.ones((N, 4))
+    for i in range(4):
+        cmap[:, i] = np.linspace(min_color[i], max_color[i], N) / 256
+    return mpl.colors.ListedColormap(cmap)
 
 
 def get_cmaps():
