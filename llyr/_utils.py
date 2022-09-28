@@ -11,7 +11,6 @@ import matplotlib as mpl
 import zarr
 import h5py
 from numcodecs import Blosc
-import scipy as sp
 import IPython
 
 
@@ -330,7 +329,7 @@ class MidpointNormalize(mpl.colors.Normalize):
 import struct
 
 
-def save_ovf(path: str, arr: np.ndarray, dx: float, dy: float, dz: float) -> None:
+def save_ovf(path: str, arr: np.ndarray, dx: float=1e-9, dy: float=1e-9, dz: float=1e-9) -> None:
     """Saves the given dataset for a given t to a valid OOMMF V2 ovf file"""
 
     def whd(s):
