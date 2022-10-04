@@ -121,6 +121,15 @@ class Group(zarr.hierarchy.Group):
         else:
             return arr[..., c]
 
+    def get_fft(self, c, xmin: int = 0, normalize=True, force=False):
+        if "fft/m" not in self or force:
+            print("Calculating modes ...")
+        freqs = self.fft.m.freqs[xmin:]
+        fft = self.fft.m.max[xmin:, c]
+        if normalize:
+            fft /= fft.max()
+        return freqs, fft
+
     def check_path(self, dset: str, force: bool = False):
         if dset in self:
             if force:
