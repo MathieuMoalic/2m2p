@@ -9,9 +9,10 @@ from ._utils import make_cmap
 
 def ipp(op, path, xstep=2, comp=0, fmin=0, fmax=20, title="nm", anim=False):
     paths = sorted(
-        glob(f"{path}/*.zarr"), key=lambda x: int(x.split("/")[-1].replace(".zarr", ""))
+        glob(f"{path}/*.zarr"),
+        key=lambda x: float(x.split("/")[-1].replace(".zarr", "")),
     )
-    xlabels = np.array([int(p.split("/")[-1].replace(".zarr", "")) for p in paths])
+    xlabels = np.array([float(p.split("/")[-1].replace(".zarr", "")) for p in paths])
     lstep = xlabels[1] - xlabels[0]
     fig = plt.figure(figsize=(8, 4), dpi=200)
     gs = fig.add_gridspec(1, 2)
@@ -47,7 +48,9 @@ def ipp(op, path, xstep=2, comp=0, fmin=0, fmax=20, title="nm", anim=False):
     ax_plot.set_title(title)
     ax_plot.grid(color="gray", linestyle="--", linewidth=0.5)
     ax_plot.set_ylabel("Frequency (GHz)")
-    hline = ax_plot.axhline((freqs.max() - freqs.min()) / 2, ls="--", lw=0.8, c="#ffb86c")
+    hline = ax_plot.axhline(
+        (freqs.max() - freqs.min()) / 2, ls="--", lw=0.8, c="#ffb86c"
+    )
     vline = ax_plot.axvline(xlabels[0], ls="--", lw=0.8, c="#ffb86c")
 
     class state:
@@ -92,7 +95,7 @@ def ipp(op, path, xstep=2, comp=0, fmin=0, fmax=20, title="nm", anim=False):
         ax_mode.cla()
         ax_mode.set(xticks=[], yticks=[])
         x = xlabels[np.abs(xlabels - x).argmin()]
-        m = op(f"{path}/{x:0>4}.zarr")
+        m = op(f"{path}/{x:0>4.0f}.zarr")
         if snap:
             fft = m.fft.m.max[2:, 0]
             freqs = m.fft.m.freqs[2:]  # * 1e-9

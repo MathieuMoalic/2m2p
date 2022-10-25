@@ -5,7 +5,7 @@ from ..base import Base
 
 
 class modes(Base):
-    def calc(self, dset: str = "m", name=None, slices=(slice(None),)):
+    def calc(self, dset: str = "m", name=None, slices=(slice(None),), hanning=True):
         if name is None:
             name = dset
         self.m.rm(f"modes/{name}")
@@ -28,7 +28,8 @@ class modes(Base):
         )
         da.to_zarr(x2, d1)
         x1 -= da.average(x1)
-        x1 = x1 * np.hanning(x1.shape[0])[:, None, None, None, None]
+        if hanning:
+            x1 = x1 * np.hanning(x1.shape[0])[:, None, None, None, None]
         x1 = np.fft.rfft(x1, axis=0)
         x1 = da.absolute(x1)
         fft_max = da.max(x1, axis=(1, 2, 3))

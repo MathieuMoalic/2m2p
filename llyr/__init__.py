@@ -110,7 +110,7 @@ class Group(zarr.hierarchy.Group):
     def comp_to_c(self, c):
         return {"mx": 0, "my": 1, "mz": 2}[c]
 
-    def get_mode(self, dset: str, f: float, c: int | None = None):
+    def get_mode(self, dset: str, f: float, c=None):
         if f"modes/{dset}/arr" not in self:
             print("Calculating modes ...")
             self.calc.modes(dset)

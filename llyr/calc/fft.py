@@ -17,6 +17,7 @@ class fft(Base):
         xslice=slice(None),
         cslice=slice(None),
         zero=None,
+        hanning=True,
     ):
         if name is None:
             name = dset_name
@@ -35,7 +36,8 @@ class fft(Base):
         else:
             arr -= zero
         arr -= np.average(arr)
-        arr *= np.hanning(arr.shape[0])[:, None, None, None, None]
+        if hanning:
+            arr *= np.hanning(arr.shape[0])[:, None, None, None, None]
         arr = np.fft.rfft(arr, axis=0)
         arr = np.abs(arr)
         arr = np.max(arr, axis=(1, 2, 3))

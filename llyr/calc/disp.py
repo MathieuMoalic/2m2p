@@ -63,21 +63,9 @@ class disp(Base):
         kvecs = np.fft.fftshift(np.fft.fftfreq(arr.shape[1], self.m.dx)) * 2 * np.pi
         self.m.create_dataset(f"disp/{name}/kvecs", data=kvecs, chunks=None)
 
-    def calc_da(
-        self,
-        dset_name: str,
-        name: Optional[str] = None,
-        force: Optional[bool] = False,
-        tslice=slice(None),
-        zslice=slice(None),
-        yslice=slice(None),
-        xslice=slice(None),
-        cslice=slice(None),
-    ):
+    def calc_da(self, dset_name: str, name: Optional[str] = None):
         if name is None:
             name = dset_name
-        if force:
-            self.m.rm(f"disp/{name}")
         if any(
             f"disp/{name}/{d}" in self.m for d in ["freqs", "kvecs", "disp", "fft2d"]
         ):
@@ -85,12 +73,10 @@ class disp(Base):
                 f"The dataset:'disp/{name}' already exists, you can use 'force=True'"
             )
         dset = self.m[dset_name]
-        if tslice.stop is None or tslice.stop > dset.shape[0]:
-            tslice = slice(dset.shape[0])
 
         with ProgressBar():
-            arr = da.from_array(dset, chunks=(None, None, 2, None, None))
-            arr = arr[tslice, zslice, yslice, xslice, cslice]
+            arr = da.from_array(dset, chunks=(None, None, 1, None, None))
+            arr = arr[:]
             if arr.shape[3] % 2 == 0:
                 arr = arr[:, :, :, 1:, :]
             if arr.shape[0] % 2 == 0:
@@ -125,7 +111,7 @@ class disp(Base):
             )
             da.to_zarr(arr, d1)
 
-        ts = dset.attrs["t"][tslice]
+        ts = dset.attrs["t"][:]
         freqs = np.fft.rfftfreq(len(ts), (ts[-1] - ts[0]) / len(ts))
         self.m.create_dataset(f"disp/{name}/freqs", data=freqs, chunks=None)
 
