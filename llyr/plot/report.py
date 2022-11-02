@@ -22,17 +22,17 @@ class report(Base):
         def get_spectra() -> dict:
             spectra = {}
             for c in range(3):
-                y = self.m[f"table/{dset}"][slice(tmin, tmax, tstep), c]
-                ts = self.m["table/t"][slice(tmin, tmax, tstep)]
-                table_dt = (ts[-1] - ts[0]) / len(ts)
-                x = np.fft.rfftfreq(y.shape[0], table_dt * tstep) * 1e-9
-                y -= y[0]
-                y -= np.average(y)
-                y = np.multiply(y, np.hanning(y.shape[0]))
-                y = np.fft.rfft(y)
-                y = np.abs(y)
-                spectra["freqs"] = x
-                spectra[c] = y
+                # y = self.m[f"table/{dset}"][slice(tmin, tmax, tstep), c]
+                # ts = self.m["table/t"][slice(tmin, tmax, tstep)]
+                # table_dt = (ts[-1] - ts[0]) / len(ts)
+                # x = np.fft.rfftfreq(y.shape[0], table_dt * tstep) * 1e-9
+                # y -= y[0]
+                # y -= np.average(y)
+                # y = np.multiply(y, np.hanning(y.shape[0]))
+                # y = np.fft.rfft(y)
+                # y = np.abs(y)
+                spectra["freqs"] = self.m.fft.m.freqs[:]
+                spectra[c] = self.m.fft.m.max[:, c]
             return spectra
 
         def get_peaks(s):
@@ -158,7 +158,7 @@ class report(Base):
         sorted_peaks, all_peaks = get_peaks(spectra)
         modes = get_modes(sorted_peaks)
 
-        fig = plt.figure(constrained_layout=True, figsize=(7, 5))
+        fig = plt.figure(constrained_layout=True, figsize=(15, 12))
         gs_main = fig.add_gridspec(4, 1)
         plot_spectra(gs_main, spectra, all_peaks)
         plot_modes(gs_main, modes)

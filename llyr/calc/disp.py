@@ -10,7 +10,7 @@ from ..base import Base
 class disp(Base):
     def calc(
         self,
-        dset_name: str,
+        dset_name: str = "m",
         name: Optional[str] = None,
         force: Optional[bool] = False,
         tslice=slice(None),

@@ -10,6 +10,9 @@ from .snapshot_png import snapshot_png
 from .report import report
 from .sin_anim import sin_anim
 from .cross_section import cross_section
+from .spec import spec
+from .disp import disp
+from .idisp import idisp
 
 
 class Plot:
@@ -28,3 +31,6 @@ class Plot:
         self.report = report(llyr).plot
         self.sin_anim = sin_anim(llyr).plot
         self.cross_section = cross_section(llyr).plot
+        self.spec = spec(llyr).plot
+        self.disp = disp(llyr).plot
+        self.idisp = idisp(llyr).plot
