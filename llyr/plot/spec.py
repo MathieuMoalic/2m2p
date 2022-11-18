@@ -1,6 +1,7 @@
 from collections import namedtuple
 
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import peakutils
 import numpy as np
 
@@ -13,6 +14,8 @@ class spec(Base):
         dset="m",
         thres=0.01,
         min_dist=5,
+        xmin=0,
+        xmax=40,
         c=0,
     ):
         def get_peaks(x, y):
@@ -57,6 +60,7 @@ class spec(Base):
                     cmap="inferno",
                     # vmin=0,
                     # vmax=mode_list_max,
+                    norm=mpl.colors.LogNorm(vmin=5e-3),
                     extent=extent,
                     interpolation="None",
                     aspect="equal",
@@ -81,11 +85,17 @@ class spec(Base):
                     extent=extent,
                 )
 
+        def get_spectrum():
+            x = self.m.fft.m.freqs[:]
+            y = self.m.fft.m.max[:, c]
+            x1 = np.abs(x - xmin).argmin()
+            x2 = np.abs(x - xmax).argmin()
+            return x[x1:x2], y[x1:x2]
+
         fig = plt.figure(constrained_layout=True, figsize=(15, 6))
         gs = fig.add_gridspec(1, 2)
         ax_spec = fig.add_subplot(gs[0, 0])
-        x = self.m.fft.m.freqs[:]
-        y = self.m.fft.m.max[:, c]
+        x, y = get_spectrum()
         peaks = get_peaks(x, y)
         plot_spectra(ax_spec, x, y, peaks)
         axes_modes = gs[0, 1].subgridspec(3, 3).subplots()
@@ -105,4 +115,4 @@ class spec(Base):
                 fig.canvas.draw()
 
         fig.canvas.mpl_connect("button_press_event", onclick)
-        return fig, ax_spec
+        return fig, ax_spec, axes_modes
